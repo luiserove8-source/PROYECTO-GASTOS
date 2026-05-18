@@ -394,6 +394,38 @@
       .form-grid { grid-template-columns: 1fr; }
       .form-group.full { grid-column: 1; }
     }
+
+    .badge-admin {
+      display: inline-block; padding: 3px 10px;
+      border-radius: 999px; font-size: .73rem; font-weight: 700;
+      background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;
+    }
+
+    .admin-panel { margin-bottom: 24px; }
+
+    .user-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .user-row:last-child { border-bottom: none; }
+
+    .user-row-info { display: flex; align-items: center; gap: 10px; }
+
+    .user-row-meta { font-size: .8rem; color: var(--muted); }
+
+    .btn-del-user {
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 5px 12px;
+      font-size: .8rem; font-weight: 600;
+      color: var(--danger); cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+
+    .btn-del-user:hover { background: var(--danger-light); border-color: var(--danger); }
   </style>
 </head>
 <body>
@@ -456,6 +488,7 @@
       <div class="user-pill">
         <div class="avatar" id="topbar-avatar"></div>
         <span id="topbar-username" style="font-weight:600;font-size:.95rem"></span>
+        <span id="topbar-admin-badge" class="badge-admin" style="display:none">Admin</span>
         <button class="btn-logout" onclick="doLogout()">Cerrar sesión</button>
       </div>
     </div>
@@ -474,6 +507,12 @@
         <span class="label">Balance</span>
         <span class="amount" id="total-balance">$0.00</span>
       </div>
+    </div>
+
+    <!-- Admin panel -->
+    <div id="admin-panel" class="card admin-panel" style="display:none">
+      <div class="card-title">🛡️ Panel de administración</div>
+      <div id="admin-user-list"></div>
     </div>
 
     <!-- Per-user summary -->
@@ -569,6 +608,10 @@
   const KEY_TXS   = 'gastos-data';
   const KEY_SESSION = 'gastos-session';
 
+  // ── Admin (hardcoded, not stored in localStorage) ──
+  const ADMIN_USER = 'Sebas R';
+  const ADMIN_PASS = '1234P';
+
   // ── State ──
   let users        = JSON.parse(localStorage.getItem(KEY_USERS) || '[]');
   let transactions = JSON.parse(localStorage.getItem(KEY_TXS)   || '[]');
@@ -626,10 +669,20 @@
     const username = document.getElementById('l-user').value.trim();
     const password = document.getElementById('l-pass').value;
     const err = document.getElementById('login-error');
+
+    // Check admin first
+    if (username.toLowerCase() === ADMIN_USER.toLowerCase()) {
+      if (password !== ADMIN_PASS) { err.textContent = 'Contraseña incorrecta.'; return; }
+      currentUser = { username: ADMIN_USER, isAdmin: true };
+      sessionStorage.setItem(KEY_SESSION, JSON.stringify(currentUser));
+      showApp();
+      return;
+    }
+
     const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
     if (!user) { err.textContent = 'Usuario no encontrado.'; return; }
     if (user.hash !== hashPass(password)) { err.textContent = 'Contraseña incorrecta.'; return; }
-    currentUser = { username: user.username };
+    currentUser = { username: user.username, isAdmin: false };
     sessionStorage.setItem(KEY_SESSION, JSON.stringify(currentUser));
     showApp();
   }
@@ -641,6 +694,9 @@
     const pass2 = document.getElementById('r-pass2').value;
     const err   = document.getElementById('register-error');
 
+    if (username.toLowerCase() === ADMIN_USER.toLowerCase()) {
+      err.textContent = 'Ese nombre de usuario no está disponible.'; return;
+    }
     if (users.length >= 10) { err.textContent = 'Límite de usuarios alcanzado.'; return; }
     if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
       err.textContent = 'Ese nombre de usuario ya existe.'; return;
@@ -669,11 +725,13 @@
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-screen').style.display   = 'block';
 
-    const color = userColor(currentUser.username);
+    const color = currentUser.isAdmin ? '#b45309' : userColor(currentUser.username);
     const av = document.getElementById('topbar-avatar');
-    av.textContent   = userInitial(currentUser.username);
+    av.textContent      = userInitial(currentUser.username);
     av.style.background = color;
     document.getElementById('topbar-username').textContent = currentUser.username;
+    document.getElementById('topbar-admin-badge').style.display = currentUser.isAdmin ? '' : 'none';
+    document.getElementById('admin-panel').style.display = currentUser.isAdmin ? 'block' : 'none';
 
     populateCategorySelect('category', currentType);
     render();
@@ -721,14 +779,14 @@
       catSel.appendChild(o);
     });
 
-    // users
+    // users (admin + regular)
     const userSel  = document.getElementById('filter-user');
     const prevUser = userSel.value;
     userSel.innerHTML = '<option value="">Todos los usuarios</option>';
-    users.forEach(u => {
+    [ADMIN_USER, ...users.map(u => u.username)].forEach(name => {
       const o = document.createElement('option');
-      o.value = u.username; o.textContent = u.username;
-      if (u.username === prevUser) o.selected = true;
+      o.value = name; o.textContent = name + (name === ADMIN_USER ? ' (Admin)' : '');
+      if (name === prevUser) o.selected = true;
       userSel.appendChild(o);
     });
   }
@@ -761,22 +819,31 @@
     balEl.style.color  = balance >= 0 ? 'var(--success)' : 'var(--danger)';
   }
 
+  function allUsernames() {
+    const regular = users.map(u => u.username);
+    const names = [ADMIN_USER, ...regular];
+    return names.filter(n => transactions.some(t => t.user === n) || regular.includes(n));
+  }
+
   function renderUsersSummary() {
     const list = getFiltered();
     const container = document.getElementById('users-summary-container');
-    if (users.length === 0) { container.innerHTML = ''; return; }
+    const allNames = [...new Set([ADMIN_USER, ...users.map(u => u.username)])];
+    if (allNames.length === 0) { container.innerHTML = ''; return; }
 
-    container.innerHTML = users.map(u => {
-      const utxs    = list.filter(t => t.user === u.username);
+    container.innerHTML = allNames.map(name => {
+      const isAdminUser = name === ADMIN_USER;
+      const utxs    = list.filter(t => t.user === name);
       const income  = utxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
       const expense = utxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
       const balance = income - expense;
-      const color   = userColor(u.username);
+      const color   = isAdminUser ? '#b45309' : userColor(name);
       return `
         <div class="user-summary-card">
           <div class="u-header">
-            <div class="avatar" style="background:${color}">${userInitial(u.username)}</div>
-            <span class="u-name">${u.username}</span>
+            <div class="avatar" style="background:${color}">${userInitial(name)}</div>
+            <span class="u-name">${name}</span>
+            ${isAdminUser ? '<span class="badge-admin" style="font-size:.7rem;padding:2px 8px">Admin</span>' : ''}
           </div>
           <div class="user-stat-row">
             <span class="s-label">Ingresos</span>
@@ -844,6 +911,7 @@
     populateFilterSelects();
     renderSummary();
     renderUsersSummary();
+    renderAdminPanel();
     renderList();
     renderChart('expense', 'expense-chart');
     renderChart('income',  'income-chart');
@@ -852,6 +920,37 @@
   function remove(id) {
     transactions = transactions.filter(t => t.id !== id);
     saveTxs(); render();
+  }
+
+  function deleteUser(username) {
+    if (!confirm(`¿Eliminar al usuario "${username}" y todas sus transacciones?`)) return;
+    users = users.filter(u => u.username !== username);
+    transactions = transactions.filter(t => t.user !== username);
+    saveUsers(); saveTxs(); render();
+  }
+
+  function renderAdminPanel() {
+    if (!currentUser?.isAdmin) return;
+    const container = document.getElementById('admin-user-list');
+    if (users.length === 0) {
+      container.innerHTML = '<p class="empty" style="padding:16px 0">No hay usuarios registrados.</p>';
+      return;
+    }
+    container.innerHTML = users.map(u => {
+      const color = userColor(u.username);
+      const txCount = transactions.filter(t => t.user === u.username).length;
+      return `
+        <div class="user-row">
+          <div class="user-row-info">
+            <div class="avatar" style="background:${color};width:32px;height:32px;font-size:.8rem">${userInitial(u.username)}</div>
+            <div>
+              <div style="font-weight:600;font-size:.9rem">${u.username}</div>
+              <div class="user-row-meta">${txCount} transacción${txCount !== 1 ? 'es' : ''}</div>
+            </div>
+          </div>
+          <button class="btn-del-user" onclick="deleteUser('${u.username}')">Eliminar usuario</button>
+        </div>`;
+    }).join('');
   }
 
   document.getElementById('tx-form').addEventListener('submit', e => {
