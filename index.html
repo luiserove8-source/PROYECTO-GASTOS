@@ -21,6 +21,10 @@
       --border: #e2e8f0;
       --radius: 12px;
       --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+      --user1: #7c3aed;
+      --user1-light: #ede9fe;
+      --user2: #db2777;
+      --user2-light: #fce7f3;
     }
 
     body {
@@ -28,27 +32,157 @@
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
+    }
+
+    /* ── LOGIN ── */
+    #login-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 24px 16px;
     }
 
-    h1 {
-      text-align: center;
-      font-size: 1.8rem;
-      font-weight: 700;
-      color: var(--primary);
-      margin-bottom: 8px;
+    .login-box {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 400px;
     }
 
-    .subtitle {
+    .login-box h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .login-box .sub {
       text-align: center;
       color: var(--muted);
-      font-size: .9rem;
+      font-size: .85rem;
       margin-bottom: 28px;
     }
 
-    .container { max-width: 860px; margin: 0 auto; }
+    .tab-row {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 24px;
+    }
 
-    /* Summary cards */
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      padding: 10px;
+      font-size: .9rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color .15s, border-color .15s;
+    }
+
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    .login-form { display: flex; flex-direction: column; gap: 14px; }
+
+    .login-form label { font-size: .8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px; }
+
+    .login-form input {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: .95rem;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--bg);
+      transition: border-color .15s;
+    }
+
+    .login-form input:focus { outline: none; border-color: var(--primary); background: #fff; }
+
+    .btn-primary {
+      padding: 12px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s;
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .btn-primary:hover { opacity: .88; }
+
+    .login-error {
+      color: var(--danger);
+      font-size: .82rem;
+      text-align: center;
+      min-height: 18px;
+    }
+
+    .users-registered {
+      font-size: .78rem;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    /* ── APP ── */
+    #app-screen { display: none; padding: 24px 16px; }
+
+    /* Top bar */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .topbar h1 { font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: .9rem; color: #fff;
+      flex-shrink: 0;
+    }
+
+    .btn-logout {
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: .82rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+
+    .btn-logout:hover { background: var(--danger-light); color: var(--danger); border-color: var(--danger); }
+
+    .container { max-width: 900px; margin: 0 auto; }
+
+    /* Summary */
     .summary {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -67,12 +201,48 @@
     }
 
     .summary-card .label { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-    .summary-card .amount { font-size: 1.6rem; font-weight: 700; }
+    .summary-card .amount { font-size: 1.5rem; font-weight: 700; }
     .summary-card.income .amount  { color: var(--success); }
     .summary-card.expense .amount { color: var(--danger); }
     .summary-card.balance .amount { color: var(--primary); }
 
-    /* Form */
+    /* Per-user summary */
+    .users-summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+
+    .user-summary-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px 20px;
+    }
+
+    .user-summary-card .u-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .user-summary-card .u-name { font-weight: 700; font-size: .95rem; }
+
+    .user-stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: .82rem;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .user-stat-row:last-child { border-bottom: none; }
+    .user-stat-row .s-label { color: var(--muted); }
+    .user-stat-row .s-val { font-weight: 700; }
+
+    /* Card */
     .card {
       background: var(--card);
       border-radius: var(--radius);
@@ -91,12 +261,8 @@
       gap: 8px;
     }
 
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-    }
-
+    /* Form */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .form-group { display: flex; flex-direction: column; gap: 6px; }
     .form-group.full { grid-column: 1 / -1; }
 
@@ -115,9 +281,7 @@
     }
 
     input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: var(--primary);
-      background: #fff;
+      outline: none; border-color: var(--primary); background: #fff;
     }
 
     textarea { resize: vertical; min-height: 60px; }
@@ -130,26 +294,14 @@
     }
 
     .type-toggle button {
-      flex: 1;
-      padding: 10px;
-      border: none;
-      cursor: pointer;
-      font-size: .9rem;
-      font-weight: 600;
-      background: var(--bg);
-      color: var(--muted);
+      flex: 1; padding: 10px; border: none; cursor: pointer;
+      font-size: .9rem; font-weight: 600;
+      background: var(--bg); color: var(--muted);
       transition: background .15s, color .15s;
     }
 
-    .type-toggle button.active-expense {
-      background: var(--danger);
-      color: #fff;
-    }
-
-    .type-toggle button.active-income {
-      background: var(--success);
-      color: #fff;
-    }
+    .type-toggle button.active-expense { background: var(--danger); color: #fff; }
+    .type-toggle button.active-income  { background: var(--success); color: #fff; }
 
     .btn-add {
       grid-column: 1 / -1;
@@ -168,73 +320,50 @@
     .btn-add:hover { opacity: .88; }
 
     /* Filters */
-    .filters {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      align-items: center;
-      margin-bottom: 16px;
-    }
-
-    .filters input, .filters select {
-      flex: 1;
-      min-width: 140px;
-      padding: 8px 12px;
-      font-size: .85rem;
-    }
-
-    .filters label { display: none; }
+    .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+    .filters input, .filters select { flex: 1; min-width: 130px; padding: 8px 12px; font-size: .85rem; }
 
     /* Table */
     .table-wrap { overflow-x: auto; }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: .9rem;
-    }
+    table { width: 100%; border-collapse: collapse; font-size: .88rem; }
 
     thead th {
-      text-align: left;
-      padding: 10px 14px;
-      font-size: .75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: .05em;
-      color: var(--muted);
-      border-bottom: 2px solid var(--border);
+      text-align: left; padding: 10px 14px;
+      font-size: .73rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .05em;
+      color: var(--muted); border-bottom: 2px solid var(--border);
       white-space: nowrap;
     }
 
-    tbody tr {
-      border-bottom: 1px solid var(--border);
-      transition: background .1s;
-    }
-
+    tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
     tbody tr:last-child { border-bottom: none; }
     tbody tr:hover { background: var(--bg); }
 
-    td { padding: 12px 14px; vertical-align: middle; }
+    td { padding: 11px 14px; vertical-align: middle; }
 
     .badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 999px;
-      font-size: .75rem;
-      font-weight: 600;
+      display: inline-block; padding: 3px 10px;
+      border-radius: 999px; font-size: .73rem; font-weight: 600;
     }
 
     .badge-expense { background: var(--danger-light); color: var(--danger); }
     .badge-income  { background: var(--success-light); color: var(--success); }
 
     .cat-badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 999px;
-      font-size: .75rem;
-      font-weight: 600;
-      background: var(--primary-light);
-      color: var(--primary);
+      display: inline-block; padding: 3px 10px;
+      border-radius: 999px; font-size: .73rem; font-weight: 600;
+      background: var(--primary-light); color: var(--primary);
+    }
+
+    .user-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 999px;
+      font-size: .73rem; font-weight: 600;
+    }
+
+    .user-badge .dot {
+      width: 7px; height: 7px; border-radius: 50%;
     }
 
     .amount-cell { font-weight: 700; }
@@ -242,181 +371,315 @@
     .amount-cell.income  { color: var(--success); }
 
     .btn-del {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--muted);
-      font-size: 1.1rem;
-      padding: 4px 8px;
-      border-radius: 6px;
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 1.1rem;
+      padding: 4px 8px; border-radius: 6px;
       transition: background .15s, color .15s;
     }
 
     .btn-del:hover { background: var(--danger-light); color: var(--danger); }
 
-    .empty {
-      text-align: center;
-      padding: 40px;
-      color: var(--muted);
-      font-size: .95rem;
-    }
+    .empty { text-align: center; padding: 40px; color: var(--muted); font-size: .95rem; }
 
-    /* Chart */
-    .chart-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-bottom: 24px;
-    }
-
+    /* Charts */
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
     .bar-list { display: flex; flex-direction: column; gap: 10px; }
-
     .bar-row { display: flex; flex-direction: column; gap: 4px; }
+    .bar-label { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); font-weight: 600; }
+    .bar-track { height: 10px; background: var(--border); border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; transition: width .5s ease; }
 
-    .bar-label {
-      display: flex;
-      justify-content: space-between;
-      font-size: .8rem;
-      color: var(--muted);
-      font-weight: 600;
-    }
-
-    .bar-track {
-      height: 10px;
-      background: var(--border);
-      border-radius: 999px;
-      overflow: hidden;
-    }
-
-    .bar-fill {
-      height: 100%;
-      border-radius: 999px;
-      background: var(--primary);
-      transition: width .5s ease;
-    }
-
-    /* Responsive */
     @media (max-width: 600px) {
-      .summary { grid-template-columns: 1fr; }
+      .summary, .users-summary, .chart-grid { grid-template-columns: 1fr; }
       .form-grid { grid-template-columns: 1fr; }
       .form-group.full { grid-column: 1; }
-      .chart-grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
-<div class="container">
-  <h1>💸 Control de Gastos</h1>
-  <p class="subtitle" id="current-month"></p>
 
-  <!-- Summary -->
-  <div class="summary">
-    <div class="summary-card income">
-      <span class="label">Ingresos</span>
-      <span class="amount" id="total-income">$0.00</span>
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h2>💸 Control de Gastos</h2>
+    <p class="sub">Inicia sesión para continuar</p>
+
+    <div class="tab-row">
+      <button class="tab-btn active" id="tab-login" onclick="showTab('login')">Entrar</button>
+      <button class="tab-btn" id="tab-register" onclick="showTab('register')">Registrarse</button>
     </div>
-    <div class="summary-card expense">
-      <span class="label">Gastos</span>
-      <span class="amount" id="total-expense">$0.00</span>
+
+    <!-- Login form -->
+    <div id="panel-login">
+      <form class="login-form" onsubmit="doLogin(event)">
+        <div>
+          <label for="l-user">Usuario</label>
+          <input id="l-user" type="text" placeholder="Tu nombre de usuario" autocomplete="username" required />
+        </div>
+        <div>
+          <label for="l-pass">Contraseña</label>
+          <input id="l-pass" type="password" placeholder="••••••••" autocomplete="current-password" required />
+        </div>
+        <p class="login-error" id="login-error"></p>
+        <button type="submit" class="btn-primary">Entrar</button>
+      </form>
+      <p class="users-registered" id="users-hint"></p>
     </div>
-    <div class="summary-card balance">
-      <span class="label">Balance</span>
-      <span class="amount" id="total-balance">$0.00</span>
+
+    <!-- Register form -->
+    <div id="panel-register" style="display:none">
+      <form class="login-form" onsubmit="doRegister(event)">
+        <div>
+          <label for="r-user">Nombre de usuario</label>
+          <input id="r-user" type="text" placeholder="Ej: María" maxlength="20" autocomplete="username" required />
+        </div>
+        <div>
+          <label for="r-pass">Contraseña</label>
+          <input id="r-pass" type="password" placeholder="Mínimo 4 caracteres" minlength="4" autocomplete="new-password" required />
+        </div>
+        <div>
+          <label for="r-pass2">Confirmar contraseña</label>
+          <input id="r-pass2" type="password" placeholder="Repite la contraseña" autocomplete="new-password" required />
+        </div>
+        <p class="login-error" id="register-error"></p>
+        <button type="submit" class="btn-primary">Crear cuenta</button>
+      </form>
     </div>
   </div>
+</div>
 
-  <!-- Charts -->
-  <div class="chart-grid">
-    <div class="card">
-      <div class="card-title">📊 Gastos por categoría</div>
-      <div class="bar-list" id="expense-chart"><p class="empty" style="padding:20px">Sin datos</p></div>
-    </div>
-    <div class="card">
-      <div class="card-title">📈 Ingresos por categoría</div>
-      <div class="bar-list" id="income-chart"><p class="empty" style="padding:20px">Sin datos</p></div>
-    </div>
-  </div>
-
-  <!-- Form -->
-  <div class="card">
-    <div class="card-title">➕ Nueva transacción</div>
-    <form id="tx-form">
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Tipo</label>
-          <div class="type-toggle">
-            <button type="button" id="btn-expense" class="active-expense" onclick="setType('expense')">Gasto</button>
-            <button type="button" id="btn-income" onclick="setType('income')">Ingreso</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="amount">Monto ($)</label>
-          <input type="number" id="amount" placeholder="0.00" min="0.01" step="0.01" required />
-        </div>
-        <div class="form-group">
-          <label for="category">Categoría</label>
-          <select id="category" required>
-            <option value="">Seleccionar...</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="date">Fecha</label>
-          <input type="date" id="date" required />
-        </div>
-        <div class="form-group full">
-          <label for="desc">Descripción (opcional)</label>
-          <textarea id="desc" placeholder="Ej: Supermercado, Netflix, Nómina..."></textarea>
-        </div>
-        <button type="submit" class="btn-add">Agregar</button>
+<!-- APP -->
+<div id="app-screen">
+  <div class="container">
+    <div class="topbar">
+      <h1>💸 Control de Gastos</h1>
+      <div class="user-pill">
+        <div class="avatar" id="topbar-avatar"></div>
+        <span id="topbar-username" style="font-weight:600;font-size:.95rem"></span>
+        <button class="btn-logout" onclick="doLogout()">Cerrar sesión</button>
       </div>
-    </form>
-  </div>
-
-  <!-- Transaction list -->
-  <div class="card">
-    <div class="card-title">📋 Historial</div>
-    <div class="filters">
-      <input type="month" id="filter-month" />
-      <select id="filter-type">
-        <option value="">Todos los tipos</option>
-        <option value="expense">Gastos</option>
-        <option value="income">Ingresos</option>
-      </select>
-      <select id="filter-cat">
-        <option value="">Todas las categorías</option>
-      </select>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Tipo</th>
-            <th>Categoría</th>
-            <th>Descripción</th>
-            <th>Monto</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="tx-list"></tbody>
-      </table>
+
+    <!-- Global summary -->
+    <div class="summary">
+      <div class="summary-card income">
+        <span class="label">Ingresos totales</span>
+        <span class="amount" id="total-income">$0.00</span>
+      </div>
+      <div class="summary-card expense">
+        <span class="label">Gastos totales</span>
+        <span class="amount" id="total-expense">$0.00</span>
+      </div>
+      <div class="summary-card balance">
+        <span class="label">Balance</span>
+        <span class="amount" id="total-balance">$0.00</span>
+      </div>
+    </div>
+
+    <!-- Per-user summary -->
+    <div class="users-summary" id="users-summary-container"></div>
+
+    <!-- Charts -->
+    <div class="chart-grid">
+      <div class="card">
+        <div class="card-title">📊 Gastos por categoría</div>
+        <div class="bar-list" id="expense-chart"><p class="empty" style="padding:20px">Sin datos</p></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📈 Ingresos por categoría</div>
+        <div class="bar-list" id="income-chart"><p class="empty" style="padding:20px">Sin datos</p></div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div class="card">
+      <div class="card-title">➕ Nueva transacción</div>
+      <form id="tx-form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tipo</label>
+            <div class="type-toggle">
+              <button type="button" id="btn-expense" class="active-expense" onclick="setType('expense')">Gasto</button>
+              <button type="button" id="btn-income" onclick="setType('income')">Ingreso</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="amount">Monto ($)</label>
+            <input type="number" id="amount" placeholder="0.00" min="0.01" step="0.01" required />
+          </div>
+          <div class="form-group">
+            <label for="category">Categoría</label>
+            <select id="category" required>
+              <option value="">Seleccionar...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="date">Fecha</label>
+            <input type="date" id="date" required />
+          </div>
+          <div class="form-group full">
+            <label for="desc">Descripción (opcional)</label>
+            <textarea id="desc" placeholder="Ej: Supermercado, Netflix, Nómina..."></textarea>
+          </div>
+          <button type="submit" class="btn-add">Agregar</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- History -->
+    <div class="card">
+      <div class="card-title">📋 Historial</div>
+      <div class="filters">
+        <input type="month" id="filter-month" />
+        <select id="filter-type">
+          <option value="">Todos los tipos</option>
+          <option value="expense">Gastos</option>
+          <option value="income">Ingresos</option>
+        </select>
+        <select id="filter-cat">
+          <option value="">Todas las categorías</option>
+        </select>
+        <select id="filter-user">
+          <option value="">Todos los usuarios</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Usuario</th>
+              <th>Tipo</th>
+              <th>Categoría</th>
+              <th>Descripción</th>
+              <th>Monto</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tx-list"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
+  // ── Storage keys ──
+  const KEY_USERS = 'gastos-users';
+  const KEY_TXS   = 'gastos-data';
+  const KEY_SESSION = 'gastos-session';
+
+  // ── State ──
+  let users        = JSON.parse(localStorage.getItem(KEY_USERS) || '[]');
+  let transactions = JSON.parse(localStorage.getItem(KEY_TXS)   || '[]');
+  let currentUser  = JSON.parse(sessionStorage.getItem(KEY_SESSION) || 'null');
+  let currentType  = 'expense';
+
   const CATEGORIES = {
     expense: ['Alimentación','Transporte','Vivienda','Salud','Educación','Entretenimiento','Ropa','Tecnología','Servicios','Otros'],
     income:  ['Salario','Freelance','Inversiones','Ventas','Regalos','Reembolsos','Otros'],
   };
 
-  let currentType = 'expense';
-  let transactions = JSON.parse(localStorage.getItem('gastos-data') || '[]');
+  // Two fixed colors cycling for users
+  const USER_COLORS = ['#7c3aed','#db2777','#ea580c','#0891b2'];
 
-  function save() {
-    localStorage.setItem('gastos-data', JSON.stringify(transactions));
+  function userColor(username) {
+    const idx = users.findIndex(u => u.username === username);
+    return USER_COLORS[idx % USER_COLORS.length] || '#64748b';
   }
 
+  function userInitial(username) {
+    return username.charAt(0).toUpperCase();
+  }
+
+  // ── Simple hash (not cryptographic, just obfuscation for localStorage) ──
+  function hashPass(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = Math.imul(31, h) + str.charCodeAt(i) | 0;
+    return h.toString(36);
+  }
+
+  function saveUsers() { localStorage.setItem(KEY_USERS, JSON.stringify(users)); }
+  function saveTxs()   { localStorage.setItem(KEY_TXS,   JSON.stringify(transactions)); }
+
+  // ── Auth ──
+  function showTab(tab) {
+    document.getElementById('panel-login').style.display    = tab === 'login'    ? '' : 'none';
+    document.getElementById('panel-register').style.display = tab === 'register' ? '' : 'none';
+    document.getElementById('tab-login').classList.toggle('active',    tab === 'login');
+    document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+    document.getElementById('login-error').textContent    = '';
+    document.getElementById('register-error').textContent = '';
+  }
+
+  function updateUsersHint() {
+    const hint = document.getElementById('users-hint');
+    if (users.length === 0) {
+      hint.textContent = 'Aún no hay cuentas. Regístrate primero.';
+    } else {
+      hint.textContent = `Usuarios registrados: ${users.map(u => u.username).join(', ')}`;
+    }
+  }
+
+  function doLogin(e) {
+    e.preventDefault();
+    const username = document.getElementById('l-user').value.trim();
+    const password = document.getElementById('l-pass').value;
+    const err = document.getElementById('login-error');
+    const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+    if (!user) { err.textContent = 'Usuario no encontrado.'; return; }
+    if (user.hash !== hashPass(password)) { err.textContent = 'Contraseña incorrecta.'; return; }
+    currentUser = { username: user.username };
+    sessionStorage.setItem(KEY_SESSION, JSON.stringify(currentUser));
+    showApp();
+  }
+
+  function doRegister(e) {
+    e.preventDefault();
+    const username = document.getElementById('r-user').value.trim();
+    const pass  = document.getElementById('r-pass').value;
+    const pass2 = document.getElementById('r-pass2').value;
+    const err   = document.getElementById('register-error');
+
+    if (users.length >= 10) { err.textContent = 'Límite de usuarios alcanzado.'; return; }
+    if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
+      err.textContent = 'Ese nombre de usuario ya existe.'; return;
+    }
+    if (pass !== pass2) { err.textContent = 'Las contraseñas no coinciden.'; return; }
+
+    users.push({ username, hash: hashPass(pass) });
+    saveUsers();
+    currentUser = { username };
+    sessionStorage.setItem(KEY_SESSION, JSON.stringify(currentUser));
+    showApp();
+  }
+
+  function doLogout() {
+    sessionStorage.removeItem(KEY_SESSION);
+    currentUser = null;
+    document.getElementById('login-screen').style.display = '';
+    document.getElementById('app-screen').style.display   = 'none';
+    document.getElementById('l-user').value  = '';
+    document.getElementById('l-pass').value  = '';
+    document.getElementById('login-error').textContent = '';
+    updateUsersHint();
+  }
+
+  function showApp() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display   = '';
+
+    const color = userColor(currentUser.username);
+    const av = document.getElementById('topbar-avatar');
+    av.textContent   = userInitial(currentUser.username);
+    av.style.background = color;
+    document.getElementById('topbar-username').textContent = currentUser.username;
+
+    populateCategorySelect('category', currentType);
+    render();
+  }
+
+  // ── Helpers ──
   function fmt(n) {
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
   }
@@ -445,16 +708,28 @@
     });
   }
 
-  function populateFilterCat() {
-    const all = [...new Set(transactions.map(t => t.category))].sort();
-    const sel = document.getElementById('filter-cat');
-    const prev = sel.value;
-    sel.innerHTML = '<option value="">Todas las categorías</option>';
-    all.forEach(c => {
+  function populateFilterSelects() {
+    // categories
+    const allCats = [...new Set(transactions.map(t => t.category))].sort();
+    const catSel  = document.getElementById('filter-cat');
+    const prevCat = catSel.value;
+    catSel.innerHTML = '<option value="">Todas las categorías</option>';
+    allCats.forEach(c => {
       const o = document.createElement('option');
       o.value = c; o.textContent = c;
-      if (c === prev) o.selected = true;
-      sel.appendChild(o);
+      if (c === prevCat) o.selected = true;
+      catSel.appendChild(o);
+    });
+
+    // users
+    const userSel  = document.getElementById('filter-user');
+    const prevUser = userSel.value;
+    userSel.innerHTML = '<option value="">Todos los usuarios</option>';
+    users.forEach(u => {
+      const o = document.createElement('option');
+      o.value = u.username; o.textContent = u.username;
+      if (u.username === prevUser) o.selected = true;
+      userSel.appendChild(o);
     });
   }
 
@@ -462,35 +737,19 @@
     const month = document.getElementById('filter-month').value;
     const type  = document.getElementById('filter-type').value;
     const cat   = document.getElementById('filter-cat').value;
+    const user  = document.getElementById('filter-user').value;
     return transactions.filter(t => {
       if (month && !t.date.startsWith(month)) return false;
       if (type  && t.type !== type)           return false;
       if (cat   && t.category !== cat)        return false;
+      if (user  && t.user !== user)           return false;
       return true;
     });
   }
 
-  function renderList() {
-    const list = getFiltered().sort((a, b) => b.date.localeCompare(a.date));
-    const tbody = document.getElementById('tx-list');
-    if (!list.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty">Sin transacciones</td></tr>';
-      return;
-    }
-    tbody.innerHTML = list.map(t => `
-      <tr>
-        <td>${fmtDate(t.date)}</td>
-        <td><span class="badge badge-${t.type}">${t.type === 'expense' ? 'Gasto' : 'Ingreso'}</span></td>
-        <td><span class="cat-badge">${t.category}</span></td>
-        <td style="color:var(--muted);font-size:.85rem">${t.desc || '—'}</td>
-        <td class="amount-cell ${t.type}">${t.type === 'expense' ? '-' : '+'}${fmt(t.amount)}</td>
-        <td><button class="btn-del" onclick="remove('${t.id}')" title="Eliminar">✕</button></td>
-      </tr>
-    `).join('');
-  }
-
+  // ── Render ──
   function renderSummary() {
-    const list = getFiltered();
+    const list    = getFiltered();
     const income  = list.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     const expense = list.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
     const balance = income - expense;
@@ -498,37 +757,101 @@
     document.getElementById('total-income').textContent  = fmt(income);
     document.getElementById('total-expense').textContent = fmt(expense);
     const balEl = document.getElementById('total-balance');
-    balEl.textContent = fmt(balance);
-    balEl.style.color = balance >= 0 ? 'var(--success)' : 'var(--danger)';
+    balEl.textContent  = fmt(balance);
+    balEl.style.color  = balance >= 0 ? 'var(--success)' : 'var(--danger)';
+  }
+
+  function renderUsersSummary() {
+    const list = getFiltered();
+    const container = document.getElementById('users-summary-container');
+    if (users.length === 0) { container.innerHTML = ''; return; }
+
+    container.innerHTML = users.map(u => {
+      const utxs    = list.filter(t => t.user === u.username);
+      const income  = utxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+      const expense = utxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+      const balance = income - expense;
+      const color   = userColor(u.username);
+      return `
+        <div class="user-summary-card">
+          <div class="u-header">
+            <div class="avatar" style="background:${color}">${userInitial(u.username)}</div>
+            <span class="u-name">${u.username}</span>
+          </div>
+          <div class="user-stat-row">
+            <span class="s-label">Ingresos</span>
+            <span class="s-val" style="color:var(--success)">${fmt(income)}</span>
+          </div>
+          <div class="user-stat-row">
+            <span class="s-label">Gastos</span>
+            <span class="s-val" style="color:var(--danger)">${fmt(expense)}</span>
+          </div>
+          <div class="user-stat-row">
+            <span class="s-label">Balance</span>
+            <span class="s-val" style="color:${balance>=0?'var(--success)':'var(--danger)'}">${fmt(balance)}</span>
+          </div>
+          <div class="user-stat-row">
+            <span class="s-label">Transacciones</span>
+            <span class="s-val">${utxs.length}</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderList() {
+    const list  = getFiltered().sort((a, b) => b.date.localeCompare(a.date));
+    const tbody = document.getElementById('tx-list');
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">Sin transacciones</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(t => {
+      const color = userColor(t.user || '');
+      return `
+        <tr>
+          <td>${fmtDate(t.date)}</td>
+          <td>
+            <span class="user-badge" style="background:${color}22;color:${color}">
+              <span class="dot" style="background:${color}"></span>${t.user || '—'}
+            </span>
+          </td>
+          <td><span class="badge badge-${t.type}">${t.type === 'expense' ? 'Gasto' : 'Ingreso'}</span></td>
+          <td><span class="cat-badge">${t.category}</span></td>
+          <td style="color:var(--muted);font-size:.83rem">${t.desc || '—'}</td>
+          <td class="amount-cell ${t.type}">${t.type === 'expense' ? '-' : '+'}${fmt(t.amount)}</td>
+          <td><button class="btn-del" onclick="remove('${t.id}')" title="Eliminar">✕</button></td>
+        </tr>`;
+    }).join('');
   }
 
   function renderChart(type, containerId) {
-    const list = getFiltered().filter(t => t.type === type);
+    const list   = getFiltered().filter(t => t.type === type);
     const totals = {};
     list.forEach(t => { totals[t.category] = (totals[t.category] || 0) + t.amount; });
     const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
-    const max = sorted[0]?.[1] || 1;
-    const el = document.getElementById(containerId);
+    const max    = sorted[0]?.[1] || 1;
+    const el     = document.getElementById(containerId);
     if (!sorted.length) { el.innerHTML = '<p class="empty" style="padding:20px">Sin datos</p>'; return; }
+    const color  = type === 'expense' ? 'var(--danger)' : 'var(--success)';
     el.innerHTML = sorted.map(([cat, total]) => `
       <div class="bar-row">
         <div class="bar-label"><span>${cat}</span><span>${fmt(total)}</span></div>
-        <div class="bar-track"><div class="bar-fill" style="width:${(total/max*100).toFixed(1)}%;background:${type==='expense'?'var(--danger)':'var(--success)'}"></div></div>
-      </div>
-    `).join('');
+        <div class="bar-track"><div class="bar-fill" style="width:${(total/max*100).toFixed(1)}%;background:${color}"></div></div>
+      </div>`).join('');
   }
 
   function render() {
+    populateFilterSelects();
     renderSummary();
+    renderUsersSummary();
     renderList();
     renderChart('expense', 'expense-chart');
     renderChart('income',  'income-chart');
-    populateFilterCat();
   }
 
   function remove(id) {
     transactions = transactions.filter(t => t.id !== id);
-    save(); render();
+    saveTxs(); render();
   }
 
   document.getElementById('tx-form').addEventListener('submit', e => {
@@ -538,27 +861,33 @@
     const date     = document.getElementById('date').value;
     const desc     = document.getElementById('desc').value.trim();
     if (!amount || !category || !date) return;
-    transactions.push({ id: crypto.randomUUID(), type: currentType, amount, category, date, desc });
-    save(); render();
+    transactions.push({
+      id: crypto.randomUUID(),
+      user: currentUser.username,
+      type: currentType,
+      amount, category, date, desc
+    });
+    saveTxs(); render();
     document.getElementById('amount').value = '';
     document.getElementById('desc').value   = '';
   });
 
-  ['filter-month','filter-type','filter-cat'].forEach(id => {
+  ['filter-month','filter-type','filter-cat','filter-user'].forEach(id => {
     document.getElementById(id).addEventListener('change', render);
   });
 
-  // Init
+  // ── Init ──
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
   document.getElementById('date').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
   document.getElementById('filter-month').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
 
-  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  document.getElementById('current-month').textContent = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
-
+  updateUsersHint();
   populateCategorySelect('category', 'expense');
-  render();
+
+  if (currentUser) {
+    showApp();
+  }
 </script>
 </body>
 </html>
