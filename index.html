@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Control de Gastos</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -323,6 +324,13 @@
     .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
     .filters input, .filters select { flex: 1; min-width: 130px; padding: 8px 12px; font-size: .85rem; }
 
+    .filter-range {
+      display: flex; align-items: center; gap: 6px; flex: 2; min-width: 260px;
+    }
+
+    .filter-range span { color: var(--muted); font-size: .82rem; font-weight: 600; white-space: nowrap; }
+    .filter-range input { flex: 1; min-width: 0; }
+
     /* Table */
     .table-wrap { overflow-x: auto; }
 
@@ -565,11 +573,25 @@
       </form>
     </div>
 
+    <!-- Trend chart -->
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-title">📉 Evolución de gastos
+        <span id="trend-mode-badge" style="font-size:.72rem;font-weight:600;color:var(--muted);margin-left:4px"></span>
+      </div>
+      <canvas id="trend-canvas" style="display:none"></canvas>
+      <p id="trend-empty" class="empty" style="padding:20px">Sin datos de gastos</p>
+    </div>
+
     <!-- History -->
     <div class="card">
       <div class="card-title">📋 Historial</div>
       <div class="filters">
-        <input type="month" id="filter-month" />
+        <div class="filter-range">
+          <span>Desde</span>
+          <input type="month" id="filter-from" />
+          <span>Hasta</span>
+          <input type="month" id="filter-to" />
+        </div>
         <select id="filter-type">
           <option value="">Todos los tipos</option>
           <option value="expense">Gastos</option>
@@ -792,17 +814,36 @@
   }
 
   function getFiltered() {
-    const month = document.getElementById('filter-month').value;
+    const from = document.getElementById('filter-from').value;
+    const to   = document.getElementById('filter-to').value;
     const type  = document.getElementById('filter-type').value;
     const cat   = document.getElementById('filter-cat').value;
     const user  = document.getElementById('filter-user').value;
     return transactions.filter(t => {
-      if (month && !t.date.startsWith(month)) return false;
-      if (type  && t.type !== type)           return false;
-      if (cat   && t.category !== cat)        return false;
-      if (user  && t.user !== user)           return false;
+      const ym = t.date.slice(0, 7);
+      if (from && ym < from) return false;
+      if (to   && ym > to)   return false;
+      if (type && t.type !== type) return false;
+      if (cat  && t.category !== cat) return false;
+      if (user && t.user !== user) return false;
       return true;
     });
+  }
+
+  function getMonthCount() {
+    const from = document.getElementById('filter-from').value;
+    const to   = document.getElementById('filter-to').value;
+    if (from && to) {
+      const [fy, fm] = from.split('-').map(Number);
+      const [ty, tm] = to.split('-').map(Number);
+      return Math.max(1, (ty - fy) * 12 + (tm - fm) + 1);
+    }
+    const expenses = getFiltered().filter(t => t.type === 'expense');
+    if (expenses.length < 2) return 1;
+    const sorted = expenses.map(t => t.date.slice(0, 7)).sort();
+    const [fy, fm] = sorted[0].split('-').map(Number);
+    const [ty, tm] = sorted[sorted.length - 1].split('-').map(Number);
+    return Math.max(1, (ty - fy) * 12 + (tm - fm) + 1);
   }
 
   // ── Render ──
@@ -907,11 +948,121 @@
       </div>`).join('');
   }
 
+  let trendChart = null;
+  const MONTHS_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  function renderTrendChart() {
+    const expenses = getFiltered().filter(t => t.type === 'expense');
+    const canvas   = document.getElementById('trend-canvas');
+    const empty    = document.getElementById('trend-empty');
+    const badge    = document.getElementById('trend-mode-badge');
+
+    if (!expenses.length) {
+      if (trendChart) { trendChart.destroy(); trendChart = null; }
+      canvas.style.display = 'none';
+      empty.style.display  = '';
+      badge.textContent    = '';
+      return;
+    }
+
+    const byDay = getMonthCount() <= 2;
+    badge.textContent = byDay ? '· por día' : '· por mes';
+
+    const totals = {};
+    expenses.forEach(t => {
+      const key = byDay ? t.date : t.date.slice(0, 7);
+      totals[key] = (totals[key] || 0) + t.amount;
+    });
+
+    const keys = Object.keys(totals).sort();
+    const barData  = keys.map(k => totals[k]);
+    const lineData = [];
+    let acc = 0;
+    keys.forEach(k => { acc += totals[k]; lineData.push(acc); });
+
+    const labels = keys.map(k => {
+      if (byDay) {
+        const [, m, d] = k.split('-');
+        return `${d}/${m}`;
+      }
+      const [y, m] = k.split('-');
+      return `${MONTHS_SHORT[parseInt(m) - 1]} ${y}`;
+    });
+
+    canvas.style.display = '';
+    empty.style.display  = 'none';
+
+    if (trendChart) trendChart.destroy();
+
+    trendChart = new Chart(canvas.getContext('2d'), {
+      data: {
+        labels,
+        datasets: [
+          {
+            type: 'bar',
+            label: byDay ? 'Gastos del día' : 'Gastos del mes',
+            data: barData,
+            backgroundColor: 'rgba(239,68,68,0.45)',
+            borderColor: 'rgba(239,68,68,0.8)',
+            borderWidth: 1,
+            borderRadius: 4,
+            yAxisID: 'yBar',
+            order: 2,
+          },
+          {
+            type: 'line',
+            label: 'Acumulado',
+            data: lineData,
+            borderColor: '#4f46e5',
+            backgroundColor: 'rgba(79,70,229,0.08)',
+            borderWidth: 2.5,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            fill: true,
+            tension: 0.35,
+            yAxisID: 'yLine',
+            order: 1,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', labels: { font: { size: 12 } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: $ ${Math.round(ctx.parsed.y).toLocaleString('es-CO')}`
+            }
+          }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+          yBar: {
+            type: 'linear',
+            position: 'left',
+            ticks: { callback: v => '$ ' + Math.round(v).toLocaleString('es-CO'), font: { size: 11 } },
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'Por período', font: { size: 11 }, color: 'rgba(239,68,68,0.8)' }
+          },
+          yLine: {
+            type: 'linear',
+            position: 'right',
+            ticks: { callback: v => '$ ' + Math.round(v).toLocaleString('es-CO'), font: { size: 11 } },
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            title: { display: true, text: 'Acumulado', font: { size: 11 }, color: '#4f46e5' }
+          }
+        }
+      }
+    });
+  }
+
   function render() {
     populateFilterSelects();
     renderSummary();
     renderUsersSummary();
     renderAdminPanel();
+    renderTrendChart();
     renderList();
     renderChart('expense', 'expense-chart');
     renderChart('income',  'income-chart');
@@ -971,15 +1122,16 @@
     document.getElementById('desc').value   = '';
   });
 
-  ['filter-month','filter-type','filter-cat','filter-user'].forEach(id => {
+  ['filter-from','filter-to','filter-type','filter-cat','filter-user'].forEach(id => {
     document.getElementById(id).addEventListener('change', render);
   });
 
   // ── Init ──
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
-  document.getElementById('date').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-  document.getElementById('filter-month').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+  document.getElementById('date').value        = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  document.getElementById('filter-from').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+  document.getElementById('filter-to').value   = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
 
   updateUsersHint();
   populateCategorySelect('category', 'expense');
