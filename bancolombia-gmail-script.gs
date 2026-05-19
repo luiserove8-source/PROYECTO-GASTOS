@@ -19,8 +19,18 @@ function parseEmail(subject, body) {
   // Extrae monto: $1,234.56 o $1.234,56 → número entero
   const montoMatch = text.match(/\$\s*([\d,\.]+)/);
   if (!montoMatch) return null;
-  const montoStr = montoMatch[1].replace(/\./g, '').replace(',', '.');
-  const amount   = Math.round(parseFloat(montoStr));
+  const raw = montoMatch[1];
+  // Detecta formato: si el último separador es punto → formato US (1,000.00)
+  // Si el último separador es coma → formato ES (1.000,00)
+  const lastDot   = raw.lastIndexOf('.');
+  const lastComma = raw.lastIndexOf(',');
+  let clean;
+  if (lastDot > lastComma) {
+    clean = raw.replace(/,/g, '');          // US: quita comas → "1000.00"
+  } else {
+    clean = raw.replace(/\./g, '').replace(',', '.'); // ES: quita puntos, coma→punto
+  }
+  const amount = Math.round(parseFloat(clean));
   if (!amount || isNaN(amount)) return null;
 
   // Descripción: asunto completo limpio del correo
