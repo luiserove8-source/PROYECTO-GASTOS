@@ -677,7 +677,8 @@
 
     <!-- Trend chart -->
     <div class="card" style="margin-bottom:24px">
-      <div class="card-title">📉 Evolución de gastos
+      <div class="card-title">
+        <span id="trend-title">📉 Evolución de gastos</span>
         <span id="trend-mode-badge" style="font-size:.72rem;font-weight:600;color:var(--muted);margin-left:4px"></span>
       </div>
       <canvas id="trend-canvas" style="display:none"></canvas>
@@ -1155,111 +1156,142 @@
 
   let trendChart = null;
   const MONTHS_SHORT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const CAT_PALETTE  = ['#10b981','#3b82f6','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#84cc16','#ef4444','#a855f7'];
+
+  function makePeriodLabel(k, byDay) {
+    if (byDay) { const [,m,d] = k.split('-'); return `${d}/${m}`; }
+    const [y,m] = k.split('-');
+    return `${MONTHS_SHORT[parseInt(m)-1]} ${y}`;
+  }
 
   function renderTrendChart() {
-    const expenses = getFiltered().filter(t => t.type === 'expense');
-    const canvas   = document.getElementById('trend-canvas');
-    const empty    = document.getElementById('trend-empty');
-    const badge    = document.getElementById('trend-mode-badge');
+    const filterType = document.getElementById('filter-type').value;
+    const canvas     = document.getElementById('trend-canvas');
+    const empty      = document.getElementById('trend-empty');
+    const badge      = document.getElementById('trend-mode-badge');
+    const title      = document.getElementById('trend-title');
 
-    if (!expenses.length) {
-      if (trendChart) { trendChart.destroy(); trendChart = null; }
-      canvas.style.display = 'none';
-      empty.style.display  = '';
-      badge.textContent    = '';
-      return;
-    }
+    const showIncome = filterType === 'income';
 
-    const byDay = getMonthCount() <= 2;
-    badge.textContent = byDay ? '· por día' : '· por mes';
+    if (trendChart) { trendChart.destroy(); trendChart = null; }
 
-    const totals = {};
-    expenses.forEach(t => {
-      const key = byDay ? t.date : t.date.slice(0, 7);
-      totals[key] = (totals[key] || 0) + t.amount;
-    });
+    if (showIncome) {
+      // ── Gráfica de ingresos: líneas por categoría con área ──
+      title.textContent = '📈 Evolución de ingresos por categoría';
+      const incomes = getFiltered().filter(t => t.type === 'income');
 
-    const keys = Object.keys(totals).sort();
-    const barData  = keys.map(k => totals[k]);
-    const lineData = [];
-    let acc = 0;
-    keys.forEach(k => { acc += totals[k]; lineData.push(acc); });
-
-    const labels = keys.map(k => {
-      if (byDay) {
-        const [, m, d] = k.split('-');
-        return `${d}/${m}`;
+      if (!incomes.length) {
+        canvas.style.display = 'none'; empty.style.display = ''; badge.textContent = ''; return;
       }
-      const [y, m] = k.split('-');
-      return `${MONTHS_SHORT[parseInt(m) - 1]} ${y}`;
-    });
 
-    canvas.style.display = '';
-    empty.style.display  = 'none';
+      const byDay = getMonthCount() <= 2;
+      badge.textContent = byDay ? '· por día' : '· por mes';
 
-    if (trendChart) trendChart.destroy();
+      const keys       = [...new Set(incomes.map(t => byDay ? t.date : t.date.slice(0,7)))].sort();
+      const categories = [...new Set(incomes.map(t => t.category))].sort();
+      const labels     = keys.map(k => makePeriodLabel(k, byDay));
 
-    trendChart = new Chart(canvas.getContext('2d'), {
-      data: {
-        labels,
-        datasets: [
-          {
-            type: 'bar',
-            label: byDay ? 'Gastos del día' : 'Gastos del mes',
-            data: barData,
-            backgroundColor: 'rgba(239,68,68,0.45)',
-            borderColor: 'rgba(239,68,68,0.8)',
-            borderWidth: 1,
-            borderRadius: 4,
-            yAxisID: 'yBar',
-            order: 2,
+      const datasets = categories.map((cat, i) => {
+        const color = CAT_PALETTE[i % CAT_PALETTE.length];
+        const data  = keys.map(k =>
+          incomes.filter(t => t.category === cat && (byDay ? t.date : t.date.slice(0,7)) === k)
+                 .reduce((s, t) => s + t.amount, 0)
+        );
+        return {
+          label: cat, data,
+          borderColor: color,
+          backgroundColor: color + '28',
+          borderWidth: 2.5,
+          pointRadius: 3, pointHoverRadius: 5,
+          fill: true, tension: 0.35,
+        };
+      });
+
+      canvas.style.display = ''; empty.style.display = 'none';
+      trendChart = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { font: { size: 12 } } },
+            tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: $ ${Math.round(ctx.parsed.y).toLocaleString('es-CO')}` } }
           },
-          {
-            type: 'line',
-            label: 'Acumulado',
-            data: lineData,
-            borderColor: '#4f46e5',
-            backgroundColor: 'rgba(79,70,229,0.08)',
-            borderWidth: 2.5,
-            pointRadius: 3,
-            pointHoverRadius: 5,
-            fill: true,
-            tension: 0.35,
-            yAxisID: 'yLine',
-            order: 1,
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { position: 'top', labels: { font: { size: 12 } } },
-          tooltip: {
-            callbacks: {
-              label: ctx => `${ctx.dataset.label}: $ ${Math.round(ctx.parsed.y).toLocaleString('es-CO')}`
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+            y: {
+              ticks: { callback: v => '$ ' + Math.round(v).toLocaleString('es-CO'), font: { size: 11 } },
+              grid: { color: 'rgba(0,0,0,0.05)' },
             }
           }
+        }
+      });
+
+    } else {
+      // ── Gráfica de gastos: barras por período + línea acumulada ──
+      title.textContent = '📉 Evolución de gastos';
+      const expenses = getFiltered().filter(t => t.type === 'expense');
+
+      if (!expenses.length) {
+        canvas.style.display = 'none'; empty.style.display = ''; badge.textContent = ''; return;
+      }
+
+      const byDay = getMonthCount() <= 2;
+      badge.textContent = byDay ? '· por día' : '· por mes';
+
+      const totals = {};
+      expenses.forEach(t => { const k = byDay ? t.date : t.date.slice(0,7); totals[k] = (totals[k]||0) + t.amount; });
+      const keys    = Object.keys(totals).sort();
+      const barData = keys.map(k => totals[k]);
+      const lineData = []; let acc = 0;
+      keys.forEach(k => { acc += totals[k]; lineData.push(acc); });
+      const labels = keys.map(k => makePeriodLabel(k, byDay));
+
+      canvas.style.display = ''; empty.style.display = 'none';
+      trendChart = new Chart(canvas.getContext('2d'), {
+        data: {
+          labels,
+          datasets: [
+            {
+              type: 'bar', label: byDay ? 'Gastos del día' : 'Gastos del mes',
+              data: barData,
+              backgroundColor: 'rgba(239,68,68,0.45)', borderColor: 'rgba(239,68,68,0.8)',
+              borderWidth: 1, borderRadius: 4, yAxisID: 'yBar', order: 2,
+            },
+            {
+              type: 'line', label: 'Acumulado', data: lineData,
+              borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,0.08)',
+              borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 5,
+              fill: true, tension: 0.35, yAxisID: 'yLine', order: 1,
+            }
+          ]
         },
-        scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-          yBar: {
-            type: 'linear',
-            position: 'left',
-            ticks: { callback: v => '$ ' + Math.round(v).toLocaleString('es-CO'), font: { size: 11 } },
-            grid: { drawOnChartArea: false },
-            title: { display: true, text: 'Por período', font: { size: 11 }, color: 'rgba(239,68,68,0.8)' }
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'top', labels: { font: { size: 12 } } },
+            tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: $ ${Math.round(ctx.parsed.y).toLocaleString('es-CO')}` } }
           },
-          yLine: {
-            type: 'linear',
-            position: 'right',
-            ticks: { callback: v => '$ ' + Math.round(v).toLocaleString('es-CO'), font: { size: 11 } },
-            grid: { color: 'rgba(0,0,0,0.05)' },
-            title: { display: true, text: 'Acumulado', font: { size: 11 }, color: '#4f46e5' }
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+            yBar: {
+              type: 'linear', position: 'left',
+              ticks: { callback: v => '$ ' + Math.round(v).toLocaleString('es-CO'), font: { size: 11 } },
+              grid: { drawOnChartArea: false },
+              title: { display: true, text: 'Por período', font: { size: 11 }, color: 'rgba(239,68,68,0.8)' }
+            },
+            yLine: {
+              type: 'linear', position: 'right',
+              ticks: { callback: v => '$ ' + Math.round(v).toLocaleString('es-CO'), font: { size: 11 } },
+              grid: { color: 'rgba(0,0,0,0.05)' },
+              title: { display: true, text: 'Acumulado', font: { size: 11 }, color: '#4f46e5' }
+            }
           }
         }
-      }
-    });
+      });
+    }
   }
 
   function render() {
