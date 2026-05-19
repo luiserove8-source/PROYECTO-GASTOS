@@ -1366,9 +1366,9 @@
       expenses.forEach(t => { const k = byDay ? t.date : t.date.slice(0,7); totals[k] = (totals[k]||0) + t.amount; });
       const keys    = byDay ? (getFullDayKeys() || Object.keys(totals).sort())
                             : Object.keys(totals).sort();
-      const barData = keys.map(k => totals[k]);
+      const barData = keys.map(k => totals[k] || 0);
       const lineData = []; let acc = 0;
-      keys.forEach(k => { acc += totals[k]; lineData.push(acc); });
+      keys.forEach(k => { acc += totals[k] || 0; lineData.push(acc); });
       const labels = keys.map(k => makePeriodLabel(k, byDay));
 
       canvas.style.display = ''; empty.style.display = 'none';
