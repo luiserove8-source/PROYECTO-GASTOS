@@ -325,10 +325,14 @@
     .filters input, .filters select { flex: 1; min-width: 130px; padding: 8px 12px; font-size: .85rem; }
 
     .filter-range {
-      display: flex; align-items: center; gap: 6px; flex: 2; min-width: 260px;
+      display: flex; flex-direction: column; gap: 6px; flex: 2; min-width: 200px;
     }
 
-    .filter-range span { color: var(--muted); font-size: .82rem; font-weight: 600; white-space: nowrap; }
+    .filter-range-row {
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .filter-range span { color: var(--muted); font-size: .82rem; font-weight: 600; white-space: nowrap; width: 40px; }
     .filter-range input { flex: 1; min-width: 0; }
 
     /* Table */
@@ -746,10 +750,14 @@
       <div class="card-title">📋 Historial</div>
       <div class="filters">
         <div class="filter-range">
-          <span>Desde</span>
-          <input type="month" id="filter-from" />
-          <span>Hasta</span>
-          <input type="month" id="filter-to" />
+          <div class="filter-range-row">
+            <span>Desde</span>
+            <input type="month" id="filter-from" />
+          </div>
+          <div class="filter-range-row">
+            <span>Hasta</span>
+            <input type="month" id="filter-to" />
+          </div>
         </div>
         <select id="filter-type">
           <option value="">Todos los tipos</option>
@@ -1385,7 +1393,7 @@
             {
               type: 'line', label: 'Acumulado', data: lineData,
               borderColor: '#4f46e5', backgroundColor: 'rgba(79,70,229,0.08)',
-              borderWidth: 2.5, pointRadius: 3, pointHoverRadius: 5,
+              borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 0,
               fill: true, tension: 0.35, yAxisID: 'yLine', order: 1,
             }
           ]
