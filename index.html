@@ -511,12 +511,39 @@
     }
 
     .btn-add-cat:hover { opacity: .88; }
+
+    /* Loading overlay */
+    #loading-screen {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 16px; z-index: 999;
+    }
+
+    .spinner {
+      width: 44px; height: 44px;
+      border: 4px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text { color: var(--muted); font-size: .9rem; font-weight: 600; }
   </style>
 </head>
 <body>
 
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <p class="loading-text">Cargando datos...</p>
+</div>
+
 <!-- LOGIN -->
-<div id="login-screen">
+<div id="login-screen" style="display:none">
   <div class="login-box">
     <h2>💸 Control de Gastos</h2>
     <p class="sub">Inicia sesión para continuar</p>
@@ -742,24 +769,21 @@
 </div>
 
 <script>
-  // ── Storage keys ──
-  const KEY_USERS = 'gastos-users';
-  const KEY_TXS   = 'gastos-data';
+  // ── Firebase ──
+  const DB_URL     = 'https://gastos-f64f4-default-rtdb.firebaseio.com';
   const KEY_SESSION = 'gastos-session';
-  const KEY_CATS         = 'gastos-custom-cats';
-  const KEY_DELETED_CATS = 'gastos-deleted-cats';
 
-  // ── Admin (hardcoded, not stored in localStorage) ──
+  // ── Admin ──
   const ADMIN_USER = 'Sebas R';
   const ADMIN_PASS = '1234P';
 
-  // ── State ──
-  let users        = JSON.parse(localStorage.getItem(KEY_USERS) || '[]');
-  let transactions = JSON.parse(localStorage.getItem(KEY_TXS)   || '[]');
-  let customCats      = JSON.parse(localStorage.getItem(KEY_CATS)         || '{"expense":[],"income":[]}');
-  let deletedBaseCats = JSON.parse(localStorage.getItem(KEY_DELETED_CATS) || '{"expense":[],"income":[]}');
-  let currentUser  = JSON.parse(sessionStorage.getItem(KEY_SESSION) || 'null');
-  let currentType  = 'expense';
+  // ── State (populated from Firebase on load) ──
+  let users           = [];
+  let transactions    = [];
+  let customCats      = { expense: [], income: [] };
+  let deletedBaseCats = { expense: [], income: [] };
+  let currentUser     = JSON.parse(sessionStorage.getItem(KEY_SESSION) || 'null');
+  let currentType     = 'expense';
 
   const CATEGORIES = {
     expense: ['Alimentación','Transporte','Vivienda','Salud','Educación','Entretenimiento','Ropa','Tecnología','Servicios','Otros'],
@@ -785,10 +809,36 @@
     return h.toString(36);
   }
 
-  function saveUsers() { localStorage.setItem(KEY_USERS, JSON.stringify(users)); }
-  function saveTxs()   { localStorage.setItem(KEY_TXS,   JSON.stringify(transactions)); }
-  function saveCats()        { localStorage.setItem(KEY_CATS,         JSON.stringify(customCats)); }
-  function saveDeletedCats() { localStorage.setItem(KEY_DELETED_CATS, JSON.stringify(deletedBaseCats)); }
+  async function saveToFirebase() {
+    try {
+      await fetch(`${DB_URL}/app.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users, transactions, customCats, deletedBaseCats })
+      });
+    } catch (e) { console.error('Error guardando en Firebase:', e); }
+  }
+
+  // Aliases para compatibilidad con el código existente
+  function saveUsers()       { saveToFirebase(); }
+  function saveTxs()         { saveToFirebase(); }
+  function saveCats()        { saveToFirebase(); }
+  function saveDeletedCats() { saveToFirebase(); }
+
+  async function loadFromFirebase() {
+    try {
+      const res  = await fetch(`${DB_URL}/app.json`);
+      const data = await res.json();
+      if (data) {
+        users           = data.users           || [];
+        transactions    = data.transactions    || [];
+        customCats      = data.customCats      || { expense: [], income: [] };
+        deletedBaseCats = data.deletedBaseCats || { expense: [], income: [] };
+      }
+    } catch (e) {
+      console.error('Error cargando desde Firebase:', e);
+    }
+  }
 
   function getCategories(type) {
     const base = CATEGORIES[type].filter(c => !deletedBaseCats[type].includes(c));
@@ -1345,12 +1395,23 @@
   document.getElementById('filter-from').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
   document.getElementById('filter-to').value   = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
 
-  updateUsersHint();
-  populateCategorySelect('category', 'expense');
+  // ── Init: cargar datos desde Firebase y luego mostrar la app ──
+  (async () => {
+    await loadFromFirebase();
+    document.getElementById('loading-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display   = '';
 
-  if (currentUser) {
-    showApp();
-  }
+    updateUsersHint();
+    populateCategorySelect('category', 'expense');
+
+    if (currentUser) showApp();
+
+    // Sincronización cada 60 segundos
+    setInterval(async () => {
+      await loadFromFirebase();
+      if (currentUser) render();
+    }, 60000);
+  })();
 </script>
 </body>
 </html>
