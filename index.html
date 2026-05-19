@@ -829,11 +829,20 @@
     try {
       const res  = await fetch(`${DB_URL}/app.json`);
       const data = await res.json();
+
+      const toArr = v => !v ? [] : Array.isArray(v) ? v : Object.values(v);
+
       if (data) {
-        users           = data.users           || [];
-        transactions    = data.transactions    || [];
-        customCats      = data.customCats      || { expense: [], income: [] };
-        deletedBaseCats = data.deletedBaseCats || { expense: [], income: [] };
+        users           = toArr(data.users);
+        transactions    = toArr(data.transactions);
+        customCats      = {
+          expense: toArr(data.customCats?.expense),
+          income:  toArr(data.customCats?.income),
+        };
+        deletedBaseCats = {
+          expense: toArr(data.deletedBaseCats?.expense),
+          income:  toArr(data.deletedBaseCats?.income),
+        };
       }
     } catch (e) {
       console.error('Error cargando desde Firebase:', e);
