@@ -1,0 +1,156 @@
+/**
+ * Bancolombia Gmail → Firebase Gastos Fam RojasGomez
+ *
+ * Setup:
+ *  1. Abre script.google.com → New Project → pega este código
+ *  2. Cambia FIREBASE_URL y SCRIPT_USER si es necesario
+ *  3. Run > Run "setup" una vez para crear el trigger automático
+ *  4. Autoriza los permisos cuando te lo pida
+ */
+
+const FIREBASE_URL = 'https://gastos-f64f4-default-rtdb.firebaseio.com/app.json';
+const SCRIPT_USER  = 'Bancolombia';   // nombre que aparece como "usuario" en las transacciones
+const LABEL_NAME   = 'Procesado-Gastos'; // label que se pone al email ya procesado
+
+// ─── Categorías: ajusta según las tuyas en la app ───────────────────────────
+const CATEGORY_MAP = [
+  // [regex para el destinatario/descripción, categoría]
+  [/enel|electricidad|energia/i,            'Servicios'],
+  [/acueducto|agua|eaab/i,                  'Servicios'],
+  [/gas |naturgas|vanti/i,                  'Servicios'],
+  [/claro|tigo|movistar|wom|internet/i,     'Servicios'],
+  [/supermercado|exito|olimpica|jumbo|d1|ara|mercado/i, 'Mercado'],
+  [/restaurante|burger|mcdonald|kfc|pizza|comida/i,     'Comidas'],
+  [/uber|didi|taxi|cabify|transporte|transmilenio/i,    'Transporte'],
+  [/netflix|spotify|disney|amazon|prime/i,  'Entretenimiento'],
+  [/farmacia|drogueria|salud|clinica|medico/i, 'Salud'],
+  [/arriendo|arrendamiento/i,               'Arriendo'],
+];
+
+function getCategory(text) {
+  for (const [rx, cat] of CATEGORY_MAP) {
+    if (rx.test(text)) return cat;
+  }
+  return 'Otros';
+}
+
+// ─── Parser de correos Bancolombia ──────────────────────────────────────────
+function parseEmail(subject, body) {
+  const text = (subject + ' ' + body).replace(/\n/g, ' ');
+
+  // Extrae monto: $1,234.56 o $1.234,56 → número entero
+  const montoMatch = text.match(/\$\s*([\d,\.]+)/);
+  if (!montoMatch) return null;
+  const montoStr = montoMatch[1].replace(/\./g, '').replace(',', '.');
+  const amount   = Math.round(parseFloat(montoStr));
+  if (!amount || isNaN(amount)) return null;
+
+  // Tipo de transacción
+  let type = 'expense';   // por defecto gasto
+  if (/recibiste|abono|consignación|depósito|te enviaron/i.test(text)) {
+    type = 'income';
+  }
+
+  // Descripción corta: destinatario o referencia
+  let desc = '';
+  const destMatch = text.match(/(?:a|en|de)\s+([A-Z][A-Z\s]{3,40})(?:\s+desde|\s+el\s|\s*\.|,)/);
+  if (destMatch) desc = destMatch[1].trim();
+  if (!desc) desc = type === 'expense' ? 'Transferencia Bancolombia' : 'Ingreso Bancolombia';
+
+  // Fecha del texto del correo (DD/MM/YYYY o similar)
+  let date = '';
+  const fechaMatch = text.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (fechaMatch) {
+    date = `${fechaMatch[3]}-${fechaMatch[2]}-${fechaMatch[1]}`;
+  } else {
+    // fallback: fecha del email
+    date = Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd');
+  }
+
+  const category = getCategory(text);
+
+  return { type, amount, category, date, desc };
+}
+
+// ─── Firebase helpers ────────────────────────────────────────────────────────
+function loadFirebase() {
+  const res = UrlFetchApp.fetch(FIREBASE_URL, { muteHttpExceptions: true });
+  const data = JSON.parse(res.getContentText());
+  const toArr = v => !v ? [] : Array.isArray(v) ? v : Object.values(v);
+  return {
+    users:           toArr(data?.users),
+    transactions:    toArr(data?.transactions),
+    customCats:      { expense: toArr(data?.customCats?.expense),   income: toArr(data?.customCats?.income)   },
+    deletedBaseCats: { expense: toArr(data?.deletedBaseCats?.expense), income: toArr(data?.deletedBaseCats?.income) },
+  };
+}
+
+function saveFirebase(state) {
+  UrlFetchApp.fetch(FIREBASE_URL, {
+    method: 'put',
+    contentType: 'application/json',
+    payload: JSON.stringify(state),
+    muteHttpExceptions: true,
+  });
+}
+
+function generateUUID() {
+  return Utilities.getUuid();
+}
+
+// ─── Función principal ────────────────────────────────────────────────────────
+function processBancolombiaEmails() {
+  const label      = getOrCreateLabel(LABEL_NAME);
+  const threads    = GmailApp.search('from:(alertasynotificaciones@bancolombia.com.co) -label:' + LABEL_NAME + ' newer_than:7d');
+
+  if (!threads.length) {
+    Logger.log('No hay correos nuevos de Bancolombia.');
+    return;
+  }
+
+  const state = loadFirebase();
+
+  for (const thread of threads) {
+    for (const msg of thread.getMessages()) {
+      const subject = msg.getSubject();
+      const body    = msg.getPlainBody();
+      Logger.log('Procesando: ' + subject);
+
+      const tx = parseEmail(subject, body);
+      if (!tx) {
+        Logger.log('No se pudo parsear el correo, saltando.');
+        continue;
+      }
+
+      tx.id   = generateUUID();
+      tx.user = SCRIPT_USER;
+
+      state.transactions.push(tx);
+      Logger.log(`Transacción creada: ${tx.type} $${tx.amount} cat:${tx.category} desc:${tx.desc} fecha:${tx.date}`);
+    }
+    thread.addLabel(label);
+  }
+
+  saveFirebase(state);
+  Logger.log('Firebase actualizado con ' + threads.length + ' hilo(s) procesado(s).');
+}
+
+// ─── Crea el trigger automático cada 15 minutos ───────────────────────────────
+function setup() {
+  // Elimina triggers existentes para evitar duplicados
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'processBancolombiaEmails')
+    .forEach(t => ScriptApp.deleteTrigger(t));
+
+  ScriptApp.newTrigger('processBancolombiaEmails')
+    .timeBased()
+    .everyMinutes(15)
+    .create();
+
+  Logger.log('Trigger creado: processBancolombiaEmails cada 15 minutos.');
+}
+
+// ─── Helper: obtiene o crea el label de Gmail ─────────────────────────────────
+function getOrCreateLabel(name) {
+  return GmailApp.getUserLabelByName(name) || GmailApp.createLabel(name);
+}
