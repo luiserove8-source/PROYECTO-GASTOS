@@ -487,14 +487,14 @@
 
     .cat-chip.custom { background: #d1fae5; color: #065f46; }
 
-    .cat-chip-del {
+    .cat-chip-act {
       background: none; border: none; cursor: pointer;
-      font-size: .85rem; color: inherit; opacity: .6;
-      padding: 0; line-height: 1;
+      font-size: .78rem; color: inherit; opacity: .55;
+      padding: 0 1px; line-height: 1;
       transition: opacity .15s;
     }
 
-    .cat-chip-del:hover { opacity: 1; }
+    .cat-chip-act:hover { opacity: 1; }
 
     .add-cat-row {
       display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
@@ -746,7 +746,8 @@
   const KEY_USERS = 'gastos-users';
   const KEY_TXS   = 'gastos-data';
   const KEY_SESSION = 'gastos-session';
-  const KEY_CATS    = 'gastos-custom-cats';
+  const KEY_CATS         = 'gastos-custom-cats';
+  const KEY_DELETED_CATS = 'gastos-deleted-cats';
 
   // ── Admin (hardcoded, not stored in localStorage) ──
   const ADMIN_USER = 'Sebas R';
@@ -755,7 +756,8 @@
   // ── State ──
   let users        = JSON.parse(localStorage.getItem(KEY_USERS) || '[]');
   let transactions = JSON.parse(localStorage.getItem(KEY_TXS)   || '[]');
-  let customCats   = JSON.parse(localStorage.getItem(KEY_CATS)  || '{"expense":[],"income":[]}');
+  let customCats      = JSON.parse(localStorage.getItem(KEY_CATS)         || '{"expense":[],"income":[]}');
+  let deletedBaseCats = JSON.parse(localStorage.getItem(KEY_DELETED_CATS) || '{"expense":[],"income":[]}');
   let currentUser  = JSON.parse(sessionStorage.getItem(KEY_SESSION) || 'null');
   let currentType  = 'expense';
 
@@ -785,10 +787,12 @@
 
   function saveUsers() { localStorage.setItem(KEY_USERS, JSON.stringify(users)); }
   function saveTxs()   { localStorage.setItem(KEY_TXS,   JSON.stringify(transactions)); }
-  function saveCats()  { localStorage.setItem(KEY_CATS,  JSON.stringify(customCats)); }
+  function saveCats()        { localStorage.setItem(KEY_CATS,         JSON.stringify(customCats)); }
+  function saveDeletedCats() { localStorage.setItem(KEY_DELETED_CATS, JSON.stringify(deletedBaseCats)); }
 
   function getCategories(type) {
-    return [...CATEGORIES[type], ...customCats[type]];
+    const base = CATEGORIES[type].filter(c => !deletedBaseCats[type].includes(c));
+    return [...base, ...customCats[type]];
   }
 
   // ── Auth ──
@@ -1237,9 +1241,39 @@
     renderAdminView();
   }
 
-  function deleteCustomCategory(type, name) {
-    customCats[type] = customCats[type].filter(c => c !== name);
+  function renameCategory(type, oldName, isBase) {
+    const newName = prompt(`Renombrar categoría "${oldName}":`, oldName);
+    if (!newName || newName.trim() === oldName) return;
+    const trimmed = newName.trim();
+    if (getCategories(type).filter(c => c !== oldName).map(c => c.toLowerCase()).includes(trimmed.toLowerCase())) {
+      alert('Ya existe una categoría con ese nombre.'); return;
+    }
+    // Update existing transactions
+    transactions.forEach(t => { if (t.category === oldName) t.category = trimmed; });
+    saveTxs();
+    if (isBase) {
+      deletedBaseCats[type].push(oldName);
+      saveDeletedCats();
+      customCats[type].push(trimmed);
+    } else {
+      const idx = customCats[type].indexOf(oldName);
+      if (idx !== -1) customCats[type][idx] = trimmed;
+    }
     saveCats();
+    renderAdminView();
+  }
+
+  function deleteCategory(type, name, isBase) {
+    const txCount = transactions.filter(t => t.category === name).length;
+    const warn = txCount > 0 ? `\n\n⚠️ Hay ${txCount} transacción(es) con esta categoría. Quedarán con el nombre "${name}" en el historial.` : '';
+    if (!confirm(`¿Eliminar la categoría "${name}"?${warn}`)) return;
+    if (isBase) {
+      deletedBaseCats[type].push(name);
+      saveDeletedCats();
+    } else {
+      customCats[type] = customCats[type].filter(c => c !== name);
+      saveCats();
+    }
     renderAdminView();
   }
 
@@ -1266,17 +1300,19 @@
       }).join('');
     }
 
-    // Category chips
+    // Category chips — base (deletable/renameable) + custom (deletable/renameable)
     ['expense','income'].forEach(type => {
-      const base   = CATEGORIES[type];
-      const custom = customCats[type];
-      const chips  = document.getElementById(`chips-${type}`);
-      chips.innerHTML =
-        base.map(c => `<span class="cat-chip">${c}</span>`).join('') +
-        custom.map(c => `
-          <span class="cat-chip custom">${c}
-            <button class="cat-chip-del" onclick="deleteCustomCategory('${type}','${c}')" title="Eliminar">✕</button>
-          </span>`).join('');
+      const activeBase = CATEGORIES[type].filter(c => !deletedBaseCats[type].includes(c));
+      const custom     = customCats[type];
+      const chips      = document.getElementById(`chips-${type}`);
+      const makeChip   = (c, isBase) => `
+        <span class="cat-chip ${isBase ? '' : 'custom'}" style="padding-right:6px">
+          ${c}
+          <button class="cat-chip-act" onclick="renameCategory('${type}','${c}',${isBase})" title="Renombrar">✏️</button>
+          <button class="cat-chip-act" onclick="deleteCategory('${type}','${c}',${isBase})" title="Eliminar">✕</button>
+        </span>`;
+      chips.innerHTML = activeBase.map(c => makeChip(c, true)).join('') +
+                        custom.map(c => makeChip(c, false)).join('');
     });
   }
 
