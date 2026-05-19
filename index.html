@@ -434,6 +434,84 @@
     }
 
     .btn-del-user:hover { background: var(--danger-light); border-color: var(--danger); }
+
+    .btn-admin-view {
+      background: #fef3c7;
+      border: 1.5px solid #fcd34d;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: .82rem;
+      font-weight: 700;
+      color: #92400e;
+      cursor: pointer;
+      transition: background .15s;
+      display: none;
+    }
+
+    .btn-admin-view:hover { background: #fde68a; }
+
+    .btn-back {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 8px 14px;
+      font-size: .88rem; font-weight: 600;
+      color: var(--muted); cursor: pointer;
+      margin-bottom: 20px;
+      transition: background .15s, color .15s;
+    }
+
+    .btn-back:hover { background: var(--bg); color: var(--text); }
+
+    .admin-section-title {
+      font-size: 1rem; font-weight: 700;
+      color: var(--text); margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--border);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .cat-type-section { margin-bottom: 28px; }
+
+    .cat-type-label {
+      font-size: .75rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .06em;
+      color: var(--muted); margin-bottom: 12px;
+    }
+
+    .cat-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+
+    .cat-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 999px; font-size: .8rem; font-weight: 600;
+      background: var(--primary-light); color: var(--primary);
+    }
+
+    .cat-chip.custom { background: #d1fae5; color: #065f46; }
+
+    .cat-chip-del {
+      background: none; border: none; cursor: pointer;
+      font-size: .85rem; color: inherit; opacity: .6;
+      padding: 0; line-height: 1;
+      transition: opacity .15s;
+    }
+
+    .cat-chip-del:hover { opacity: 1; }
+
+    .add-cat-row {
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    }
+
+    .add-cat-row select { flex: 1; min-width: 130px; padding: 9px 12px; font-size: .88rem; }
+    .add-cat-row input  { flex: 2; min-width: 160px; padding: 9px 12px; font-size: .88rem; }
+
+    .btn-add-cat {
+      padding: 9px 18px; background: var(--success);
+      color: #fff; border: none; border-radius: 8px;
+      font-size: .88rem; font-weight: 700; cursor: pointer;
+      white-space: nowrap; transition: opacity .15s;
+    }
+
+    .btn-add-cat:hover { opacity: .88; }
   </style>
 </head>
 <body>
@@ -497,9 +575,13 @@
         <div class="avatar" id="topbar-avatar"></div>
         <span id="topbar-username" style="font-weight:600;font-size:.95rem"></span>
         <span id="topbar-admin-badge" class="badge-admin" style="display:none">Admin</span>
+        <button id="btn-admin-view" class="btn-admin-view" onclick="showAdminView()">⚙ Administrar</button>
         <button class="btn-logout" onclick="doLogout()">Cerrar sesión</button>
       </div>
     </div>
+
+    <!-- ── MAIN CONTENT ── -->
+    <div id="main-content">
 
     <!-- Global summary -->
     <div class="summary">
@@ -515,12 +597,6 @@
         <span class="label">Balance</span>
         <span class="amount" id="total-balance">$0.00</span>
       </div>
-    </div>
-
-    <!-- Admin panel -->
-    <div id="admin-panel" class="card admin-panel" style="display:none">
-      <div class="card-title">🛡️ Panel de administración</div>
-      <div id="admin-user-list"></div>
     </div>
 
     <!-- Per-user summary -->
@@ -621,6 +697,48 @@
         </table>
       </div>
     </div>
+
+    </div><!-- /#main-content -->
+
+    <!-- ── ADMIN VIEW ── -->
+    <div id="admin-content" style="display:none">
+      <button class="btn-back" onclick="showMainView()">← Volver al inicio</button>
+
+      <!-- Users -->
+      <div class="card">
+        <div class="admin-section-title">👥 Gestión de usuarios</div>
+        <div id="admin-user-list"></div>
+      </div>
+
+      <!-- Categories -->
+      <div class="card">
+        <div class="admin-section-title">🏷️ Gestión de categorías</div>
+
+        <div class="cat-type-section">
+          <div class="cat-type-label">Gastos</div>
+          <div class="cat-chips" id="chips-expense"></div>
+        </div>
+
+        <div class="cat-type-section">
+          <div class="cat-type-label">Ingresos</div>
+          <div class="cat-chips" id="chips-income"></div>
+        </div>
+
+        <div style="border-top:2px solid var(--border);padding-top:18px;margin-top:4px">
+          <div class="admin-section-title" style="border:none;padding:0;margin-bottom:12px;font-size:.9rem">Agregar nueva categoría</div>
+          <div class="add-cat-row">
+            <select id="new-cat-type">
+              <option value="expense">Gasto</option>
+              <option value="income">Ingreso</option>
+            </select>
+            <input id="new-cat-name" type="text" placeholder="Nombre de la categoría..." maxlength="30" />
+            <button class="btn-add-cat" onclick="addCategory()">+ Agregar</button>
+          </div>
+          <p id="cat-error" style="color:var(--danger);font-size:.8rem;margin-top:8px;min-height:16px"></p>
+        </div>
+      </div>
+    </div><!-- /#admin-content -->
+
   </div>
 </div>
 
@@ -629,6 +747,7 @@
   const KEY_USERS = 'gastos-users';
   const KEY_TXS   = 'gastos-data';
   const KEY_SESSION = 'gastos-session';
+  const KEY_CATS    = 'gastos-custom-cats';
 
   // ── Admin (hardcoded, not stored in localStorage) ──
   const ADMIN_USER = 'Sebas R';
@@ -637,6 +756,7 @@
   // ── State ──
   let users        = JSON.parse(localStorage.getItem(KEY_USERS) || '[]');
   let transactions = JSON.parse(localStorage.getItem(KEY_TXS)   || '[]');
+  let customCats   = JSON.parse(localStorage.getItem(KEY_CATS)  || '{"expense":[],"income":[]}');
   let currentUser  = JSON.parse(sessionStorage.getItem(KEY_SESSION) || 'null');
   let currentType  = 'expense';
 
@@ -666,6 +786,11 @@
 
   function saveUsers() { localStorage.setItem(KEY_USERS, JSON.stringify(users)); }
   function saveTxs()   { localStorage.setItem(KEY_TXS,   JSON.stringify(transactions)); }
+  function saveCats()  { localStorage.setItem(KEY_CATS,  JSON.stringify(customCats)); }
+
+  function getCategories(type) {
+    return [...CATEGORIES[type], ...customCats[type]];
+  }
 
   // ── Auth ──
   function showTab(tab) {
@@ -753,10 +878,28 @@
     av.style.background = color;
     document.getElementById('topbar-username').textContent = currentUser.username;
     document.getElementById('topbar-admin-badge').style.display = currentUser.isAdmin ? '' : 'none';
-    document.getElementById('admin-panel').style.display = currentUser.isAdmin ? 'block' : 'none';
+    document.getElementById('btn-admin-view').style.display     = currentUser.isAdmin ? '' : 'none';
 
+    showMainView();
+  }
+
+  function showMainView() {
+    document.getElementById('main-content').style.display  = '';
+    document.getElementById('admin-content').style.display = 'none';
+    const btn = document.getElementById('btn-admin-view');
+    btn.textContent = '⚙ Administrar';
+    btn.onclick = showAdminView;
     populateCategorySelect('category', currentType);
     render();
+  }
+
+  function showAdminView() {
+    document.getElementById('main-content').style.display  = 'none';
+    document.getElementById('admin-content').style.display = '';
+    const btn = document.getElementById('btn-admin-view');
+    btn.textContent = '← Inicio';
+    btn.onclick = showMainView;
+    renderAdminView();
   }
 
   // ── Helpers ──
@@ -780,7 +923,7 @@
     const sel = document.getElementById(id);
     const prev = sel.value;
     sel.innerHTML = '<option value="">Seleccionar...</option>';
-    CATEGORIES[type].forEach(c => {
+    getCategories(type).forEach(c => {
       const o = document.createElement('option');
       o.value = c; o.textContent = c;
       if (c === prev) o.selected = true;
@@ -1061,7 +1204,6 @@
     populateFilterSelects();
     renderSummary();
     renderUsersSummary();
-    renderAdminPanel();
     renderTrendChart();
     renderList();
     renderChart('expense', 'expense-chart');
@@ -1077,31 +1219,66 @@
     if (!confirm(`¿Eliminar al usuario "${username}" y todas sus transacciones?`)) return;
     users = users.filter(u => u.username !== username);
     transactions = transactions.filter(t => t.user !== username);
-    saveUsers(); saveTxs(); render();
+    saveUsers(); saveTxs();
+    renderAdminView();
   }
 
-  function renderAdminPanel() {
-    if (!currentUser?.isAdmin) return;
-    const container = document.getElementById('admin-user-list');
-    if (users.length === 0) {
-      container.innerHTML = '<p class="empty" style="padding:16px 0">No hay usuarios registrados.</p>';
-      return;
+  function addCategory() {
+    const type = document.getElementById('new-cat-type').value;
+    const name = document.getElementById('new-cat-name').value.trim();
+    const err  = document.getElementById('cat-error');
+    err.textContent = '';
+    if (!name) { err.textContent = 'Escribe un nombre para la categoría.'; return; }
+    if (getCategories(type).map(c => c.toLowerCase()).includes(name.toLowerCase())) {
+      err.textContent = 'Esa categoría ya existe.'; return;
     }
-    container.innerHTML = users.map(u => {
-      const color = userColor(u.username);
-      const txCount = transactions.filter(t => t.user === u.username).length;
-      return `
-        <div class="user-row">
-          <div class="user-row-info">
-            <div class="avatar" style="background:${color};width:32px;height:32px;font-size:.8rem">${userInitial(u.username)}</div>
-            <div>
-              <div style="font-weight:600;font-size:.9rem">${u.username}</div>
-              <div class="user-row-meta">${txCount} transacción${txCount !== 1 ? 'es' : ''}</div>
+    customCats[type].push(name);
+    saveCats();
+    document.getElementById('new-cat-name').value = '';
+    renderAdminView();
+  }
+
+  function deleteCustomCategory(type, name) {
+    customCats[type] = customCats[type].filter(c => c !== name);
+    saveCats();
+    renderAdminView();
+  }
+
+  function renderAdminView() {
+    // Users list
+    const userContainer = document.getElementById('admin-user-list');
+    if (users.length === 0) {
+      userContainer.innerHTML = '<p class="empty" style="padding:16px 0">No hay usuarios registrados.</p>';
+    } else {
+      userContainer.innerHTML = users.map(u => {
+        const color   = userColor(u.username);
+        const txCount = transactions.filter(t => t.user === u.username).length;
+        return `
+          <div class="user-row">
+            <div class="user-row-info">
+              <div class="avatar" style="background:${color};width:32px;height:32px;font-size:.8rem">${userInitial(u.username)}</div>
+              <div>
+                <div style="font-weight:600;font-size:.9rem">${u.username}</div>
+                <div class="user-row-meta">${txCount} transacción${txCount !== 1 ? 'es' : ''}</div>
+              </div>
             </div>
-          </div>
-          <button class="btn-del-user" onclick="deleteUser('${u.username}')">Eliminar usuario</button>
-        </div>`;
-    }).join('');
+            <button class="btn-del-user" onclick="deleteUser('${u.username}')">Eliminar</button>
+          </div>`;
+      }).join('');
+    }
+
+    // Category chips
+    ['expense','income'].forEach(type => {
+      const base   = CATEGORIES[type];
+      const custom = customCats[type];
+      const chips  = document.getElementById(`chips-${type}`);
+      chips.innerHTML =
+        base.map(c => `<span class="cat-chip">${c}</span>`).join('') +
+        custom.map(c => `
+          <span class="cat-chip custom">${c}
+            <button class="cat-chip-del" onclick="deleteCustomCategory('${type}','${c}')" title="Eliminar">✕</button>
+          </span>`).join('');
+    });
   }
 
   document.getElementById('tx-form').addEventListener('submit', e => {
