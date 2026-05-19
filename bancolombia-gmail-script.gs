@@ -12,28 +12,6 @@ const FIREBASE_URL = 'https://gastos-f64f4-default-rtdb.firebaseio.com/app.json'
 const SCRIPT_USER  = 'Bancolombia';   // nombre que aparece como "usuario" en las transacciones
 const LABEL_NAME   = 'Procesado-Gastos'; // label que se pone al email ya procesado
 
-// ─── Categorías: ajusta según las tuyas en la app ───────────────────────────
-const CATEGORY_MAP = [
-  // [regex para el destinatario/descripción, categoría]
-  [/enel|electricidad|energia/i,            'Servicios'],
-  [/acueducto|agua|eaab/i,                  'Servicios'],
-  [/gas |naturgas|vanti/i,                  'Servicios'],
-  [/claro|tigo|movistar|wom|internet/i,     'Servicios'],
-  [/supermercado|exito|olimpica|jumbo|d1|ara|mercado/i, 'Mercado'],
-  [/restaurante|burger|mcdonald|kfc|pizza|comida/i,     'Comidas'],
-  [/uber|didi|taxi|cabify|transporte|transmilenio/i,    'Transporte'],
-  [/netflix|spotify|disney|amazon|prime/i,  'Entretenimiento'],
-  [/farmacia|drogueria|salud|clinica|medico/i, 'Salud'],
-  [/arriendo|arrendamiento/i,               'Arriendo'],
-];
-
-function getCategory(text) {
-  for (const [rx, cat] of CATEGORY_MAP) {
-    if (rx.test(text)) return cat;
-  }
-  return 'Otros';
-}
-
 // ─── Parser de correos Bancolombia ──────────────────────────────────────────
 function parseEmail(subject, body) {
   const text = (subject + ' ' + body).replace(/\n/g, ' ');
@@ -45,31 +23,20 @@ function parseEmail(subject, body) {
   const amount   = Math.round(parseFloat(montoStr));
   if (!amount || isNaN(amount)) return null;
 
-  // Tipo de transacción
-  let type = 'expense';   // por defecto gasto
-  if (/recibiste|abono|consignación|depósito|te enviaron/i.test(text)) {
-    type = 'income';
-  }
+  // Descripción: asunto completo limpio del correo
+  const desc = subject.replace(/^Bancolombia:\s*/i, '').trim() || 'Notificación Bancolombia';
 
-  // Descripción corta: destinatario o referencia
-  let desc = '';
-  const destMatch = text.match(/(?:a|en|de)\s+([A-Z][A-Z\s]{3,40})(?:\s+desde|\s+el\s|\s*\.|,)/);
-  if (destMatch) desc = destMatch[1].trim();
-  if (!desc) desc = type === 'expense' ? 'Transferencia Bancolombia' : 'Ingreso Bancolombia';
-
-  // Fecha del texto del correo (DD/MM/YYYY o similar)
+  // Fecha del texto del correo (DD/MM/YYYY)
   let date = '';
   const fechaMatch = text.match(/(\d{2})\/(\d{2})\/(\d{4})/);
   if (fechaMatch) {
     date = `${fechaMatch[3]}-${fechaMatch[2]}-${fechaMatch[1]}`;
   } else {
-    // fallback: fecha del email
     date = Utilities.formatDate(new Date(), 'America/Bogota', 'yyyy-MM-dd');
   }
 
-  const category = getCategory(text);
-
-  return { type, amount, category, date, desc };
+  // Sin categoría ni tipo definido — el admin los asigna en la app
+  return { amount, date, desc, category: '', type: 'expense', status: 'pending' };
 }
 
 // ─── Firebase helpers ────────────────────────────────────────────────────────
