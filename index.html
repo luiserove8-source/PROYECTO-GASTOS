@@ -415,6 +415,27 @@
 
     .admin-panel { margin-bottom: 24px; }
 
+    .pending-row {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      padding: 14px 0; border-bottom: 1px solid var(--border);
+    }
+    .pending-row:last-child { border-bottom: none; }
+    .pending-info { flex: 1; min-width: 180px; }
+    .pending-amount { font-weight: 700; font-size: 1rem; color: var(--danger); }
+    .pending-meta { font-size: .78rem; color: var(--muted); margin-top: 3px; }
+    .pending-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .pending-actions select { padding: 7px 10px; font-size: .85rem; border-radius: 8px; border: 1px solid var(--border); }
+    .btn-approve {
+      padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer;
+      background: var(--success); color: #fff; font-weight: 600; font-size: .85rem;
+    }
+    .btn-approve:hover { opacity: .85; }
+    .btn-reject {
+      padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border);
+      background: #fff; color: var(--danger); font-weight: 600; font-size: .85rem; cursor: pointer;
+    }
+    .btn-reject:hover { background: var(--danger-light); }
+
     .user-row {
       display: flex;
       align-items: center;
@@ -795,6 +816,12 @@
     <div id="admin-content" style="display:none">
       <button class="btn-back" onclick="showMainView()">← Volver al inicio</button>
 
+      <!-- Pending Bancolombia transactions -->
+      <div class="card" id="pending-card">
+        <div class="admin-section-title">⏳ Transacciones pendientes de Bancolombia</div>
+        <div id="pending-list"></div>
+      </div>
+
       <!-- Users -->
       <div class="card">
         <div class="admin-section-title">👥 Gestión de usuarios</div>
@@ -1132,6 +1159,7 @@
     const cat   = document.getElementById('filter-cat').value;
     const user  = document.getElementById('filter-user').value;
     return transactions.filter(t => {
+      if (t.status === 'pending') return false;
       const ym = t.date.slice(0, 7);
       if (from && ym < from) return false;
       if (to   && ym > to)   return false;
@@ -1541,7 +1569,53 @@
     renderAdminView();
   }
 
+  function renderPendingTxs() {
+    const pending = transactions.filter(t => t.status === 'pending');
+    const card    = document.getElementById('pending-card');
+    const list    = document.getElementById('pending-list');
+    card.style.display = pending.length ? 'block' : 'none';
+    if (!pending.length) return;
+
+    list.innerHTML = pending.map(t => {
+      const allCats = [...getCategories('expense'), ...getCategories('income')];
+      const expCats = getCategories('expense').map(c => `<option value="expense|${c}">${c} (Gasto)</option>`).join('');
+      const incCats = getCategories('income').map(c => `<option value="income|${c}">${c} (Ingreso)</option>`).join('');
+      return `
+        <div class="pending-row">
+          <div class="pending-info">
+            <div class="pending-amount">$ ${Math.round(t.amount).toLocaleString('es-CO')}</div>
+            <div class="pending-meta">${t.desc || 'Sin descripción'} · ${t.date}</div>
+          </div>
+          <div class="pending-actions">
+            <select id="pcat-${t.id}">
+              <optgroup label="Gastos">${expCats}</optgroup>
+              <optgroup label="Ingresos">${incCats}</optgroup>
+            </select>
+            <button class="btn-approve" onclick="approvePendingTx('${t.id}')">✓ Aprobar</button>
+            <button class="btn-reject"  onclick="rejectPendingTx('${t.id}')">✕</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function approvePendingTx(id) {
+    const sel = document.getElementById('pcat-' + id);
+    if (!sel) return;
+    const [type, category] = sel.value.split('|');
+    const idx = transactions.findIndex(t => t.id === id);
+    if (idx === -1) return;
+    transactions[idx] = { ...transactions[idx], type, category, status: undefined };
+    delete transactions[idx].status;
+    saveTxs(); render(); renderAdminView();
+  }
+
+  function rejectPendingTx(id) {
+    transactions = transactions.filter(t => t.id !== id);
+    saveTxs(); renderAdminView();
+  }
+
   function renderAdminView() {
+    renderPendingTxs();
     // Users list
     const userContainer = document.getElementById('admin-user-list');
     if (users.length === 0) {
