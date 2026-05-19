@@ -9,7 +9,7 @@
  */
 
 const FIREBASE_URL = 'https://gastos-f64f4-default-rtdb.firebaseio.com/app.json';
-const SCRIPT_USER  = 'Bancolombia';   // nombre que aparece como "usuario" en las transacciones
+const SCRIPT_USER  = 'Sebas R';   // nombre que aparece como "usuario" en las transacciones
 const LABEL_NAME   = 'Procesado-Gastos'; // label que se pone al email ya procesado
 
 // ─── Parser de correos Bancolombia ──────────────────────────────────────────
@@ -33,8 +33,9 @@ function parseEmail(subject, body) {
   const amount = Math.round(parseFloat(clean));
   if (!amount || isNaN(amount)) return null;
 
-  // Descripción: asunto completo limpio del correo
-  const desc = subject.replace(/^Bancolombia:\s*/i, '').trim() || 'Notificación Bancolombia';
+  // Descripción: línea del cuerpo que empieza con "Bancolombia:"
+  const bodyLine = text.match(/Bancolombia:\s*([^.]+\.)/i);
+  const desc = bodyLine ? bodyLine[1].trim() : (subject || 'Notificación Bancolombia');
 
   // Fecha del texto del correo (DD/MM/YYYY)
   let date = '';
@@ -78,7 +79,7 @@ function generateUUID() {
 // ─── Función principal ────────────────────────────────────────────────────────
 function processBancolombiaEmails() {
   const label      = getOrCreateLabel(LABEL_NAME);
-  const threads    = GmailApp.search('from:(alertasynotificaciones@bancolombia.com.co) -label:' + LABEL_NAME + ' newer_than:7d');
+  const threads    = GmailApp.search('from:(alertasynotificaciones@an.notificacionesbancolombia.com) -label:' + LABEL_NAME + ' newer_than:7d');
 
   if (!threads.length) {
     Logger.log('No hay correos nuevos de Bancolombia.');
