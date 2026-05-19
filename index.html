@@ -532,6 +532,62 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     .loading-text { color: var(--muted); font-size: .9rem; font-weight: 600; }
+
+    /* Edit modal */
+    #edit-modal {
+      position: fixed; inset: 0; z-index: 200;
+      display: none; align-items: center; justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-backdrop {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.45);
+    }
+
+    .modal-box {
+      position: relative; z-index: 1;
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: 0 8px 40px rgba(0,0,0,.18);
+      padding: 28px 24px; width: 100%; max-width: 480px;
+      max-height: 90vh; overflow-y: auto;
+    }
+
+    .modal-title {
+      font-size: 1rem; font-weight: 700; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .modal-actions {
+      display: flex; gap: 10px; margin-top: 20px;
+    }
+
+    .btn-cancel {
+      flex: 1; padding: 11px; border: 1.5px solid var(--border);
+      border-radius: 8px; background: none; font-size: .95rem;
+      font-weight: 600; color: var(--muted); cursor: pointer;
+      transition: background .15s;
+    }
+
+    .btn-cancel:hover { background: var(--bg); }
+
+    .btn-save {
+      flex: 2; padding: 11px; background: var(--primary);
+      color: #fff; border: none; border-radius: 8px;
+      font-size: .95rem; font-weight: 700; cursor: pointer;
+      transition: opacity .15s;
+    }
+
+    .btn-save:hover { opacity: .88; }
+
+    .btn-edit {
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); font-size: 1rem;
+      padding: 4px 6px; border-radius: 6px;
+      transition: background .15s, color .15s;
+    }
+
+    .btn-edit:hover { background: var(--primary-light); color: var(--primary); }
   </style>
 </head>
 <body>
@@ -766,6 +822,48 @@
       </div>
     </div><!-- /#admin-content -->
 
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="edit-modal">
+  <div class="modal-backdrop" onclick="closeEditModal()"></div>
+  <div class="modal-box">
+    <div class="modal-title">✏️ Editar transacción</div>
+    <form id="edit-form">
+      <input type="hidden" id="edit-id" />
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Tipo</label>
+          <div class="type-toggle">
+            <button type="button" id="edit-btn-expense" class="active-expense" onclick="setEditType('expense')">Gasto</button>
+            <button type="button" id="edit-btn-income" onclick="setEditType('income')">Ingreso</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="edit-amount">Monto ($)</label>
+          <input type="number" id="edit-amount" min="1" step="1" required />
+        </div>
+        <div class="form-group">
+          <label for="edit-category">Categoría</label>
+          <select id="edit-category" required>
+            <option value="">Seleccionar...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit-date">Fecha</label>
+          <input type="date" id="edit-date" required />
+        </div>
+        <div class="form-group full">
+          <label for="edit-desc">Descripción</label>
+          <textarea id="edit-desc" style="min-height:52px"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeEditModal()">Cancelar</button>
+        <button type="submit" class="btn-save">Guardar cambios</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -1133,7 +1231,10 @@
           <td><span class="cat-badge">${t.category}</span></td>
           <td style="color:var(--muted);font-size:.83rem">${t.desc || '—'}</td>
           <td class="amount-cell ${t.type}">${t.type === 'expense' ? '-' : '+'}${fmt(t.amount)}</td>
-          <td><button class="btn-del" onclick="remove('${t.id}')" title="Eliminar">✕</button></td>
+          <td style="white-space:nowrap">
+            <button class="btn-edit" onclick="openEditModal('${t.id}')" title="Editar">✏️</button>
+            <button class="btn-del"  onclick="remove('${t.id}')" title="Eliminar">✕</button>
+          </td>
         </tr>`;
     }).join('');
   }
@@ -1164,6 +1265,26 @@
     return `${MONTHS_SHORT[parseInt(m)-1]} ${y}`;
   }
 
+  function getFullDayKeys() {
+    const from = document.getElementById('filter-from').value;
+    const to   = document.getElementById('filter-to').value;
+    if (!from) return null;
+    const end = to || from;
+    const [fy,fm] = from.split('-').map(Number);
+    const [ty,tm] = end.split('-').map(Number);
+    const lastDay  = new Date(ty, tm, 0).getDate();
+    const start = new Date(fy, fm-1, 1);
+    const stop  = new Date(ty, tm-1, lastDay);
+    const days  = [];
+    for (const d = new Date(start); d <= stop; d.setDate(d.getDate()+1)) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      days.push(`${y}-${m}-${day}`);
+    }
+    return days;
+  }
+
   function renderTrendChart() {
     const filterType = document.getElementById('filter-type').value;
     const canvas     = document.getElementById('trend-canvas');
@@ -1187,7 +1308,8 @@
       const byDay = getMonthCount() <= 2;
       badge.textContent = byDay ? '· por día' : '· por mes';
 
-      const keys       = [...new Set(incomes.map(t => byDay ? t.date : t.date.slice(0,7)))].sort();
+      const keys       = byDay ? (getFullDayKeys() || [...new Set(incomes.map(t => t.date))].sort())
+                                : [...new Set(incomes.map(t => t.date.slice(0,7)))].sort();
       const categories = [...new Set(incomes.map(t => t.category))].sort();
       const labels     = keys.map(k => makePeriodLabel(k, byDay));
 
@@ -1242,7 +1364,8 @@
 
       const totals = {};
       expenses.forEach(t => { const k = byDay ? t.date : t.date.slice(0,7); totals[k] = (totals[k]||0) + t.amount; });
-      const keys    = Object.keys(totals).sort();
+      const keys    = byDay ? (getFullDayKeys() || Object.keys(totals).sort())
+                            : Object.keys(totals).sort();
       const barData = keys.map(k => totals[k]);
       const lineData = []; let acc = 0;
       keys.forEach(k => { acc += totals[k]; lineData.push(acc); });
@@ -1308,6 +1431,48 @@
     transactions = transactions.filter(t => t.id !== id);
     saveTxs(); render();
   }
+
+  // ── Edit modal ──
+  let editType = 'expense';
+
+  function setEditType(type) {
+    editType = type;
+    document.getElementById('edit-btn-expense').className = type === 'expense' ? 'active-expense' : '';
+    document.getElementById('edit-btn-income').className  = type === 'income'  ? 'active-income'  : '';
+    populateCategorySelect('edit-category', type);
+  }
+
+  function openEditModal(id) {
+    const tx = transactions.find(t => t.id === id);
+    if (!tx) return;
+    document.getElementById('edit-id').value       = tx.id;
+    document.getElementById('edit-amount').value   = tx.amount;
+    document.getElementById('edit-date').value     = tx.date;
+    document.getElementById('edit-desc').value     = tx.desc || '';
+    setEditType(tx.type);
+    document.getElementById('edit-category').value = tx.category;
+    const modal = document.getElementById('edit-modal');
+    modal.style.display = 'flex';
+  }
+
+  function closeEditModal() {
+    document.getElementById('edit-modal').style.display = 'none';
+  }
+
+  document.getElementById('edit-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const id       = document.getElementById('edit-id').value;
+    const amount   = parseFloat(document.getElementById('edit-amount').value);
+    const category = document.getElementById('edit-category').value;
+    const date     = document.getElementById('edit-date').value;
+    const desc     = document.getElementById('edit-desc').value.trim();
+    if (!amount || !category || !date) return;
+    const idx = transactions.findIndex(t => t.id === id);
+    if (idx !== -1) {
+      transactions[idx] = { ...transactions[idx], type: editType, amount, category, date, desc };
+    }
+    saveTxs(); closeEditModal(); render();
+  });
 
   function deleteUser(username) {
     if (!confirm(`¿Eliminar al usuario "${username}" y todas sus transacciones?`)) return;
