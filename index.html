@@ -878,7 +878,7 @@
     av.style.background = color;
     document.getElementById('topbar-username').textContent = currentUser.username;
     document.getElementById('topbar-admin-badge').style.display = currentUser.isAdmin ? '' : 'none';
-    document.getElementById('btn-admin-view').style.display     = currentUser.isAdmin ? '' : 'none';
+    document.getElementById('btn-admin-view').style.display     = currentUser.isAdmin ? 'inline-block' : 'none';
 
     showMainView();
   }
