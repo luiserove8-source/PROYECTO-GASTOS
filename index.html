@@ -702,6 +702,31 @@
     <!-- ── MAIN CONTENT ── -->
     <div id="main-content">
 
+    <!-- Global date filter -->
+    <div class="card" style="padding:14px 20px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-weight:700;font-size:.88rem;color:var(--muted);white-space:nowrap">📅 Período</span>
+        <select id="global-year" style="flex:1;min-width:90px;padding:8px 10px;font-size:.88rem">
+          <option value="">Todos los años</option>
+        </select>
+        <select id="global-month" style="flex:2;min-width:130px;padding:8px 10px;font-size:.88rem">
+          <option value="">Todos los meses</option>
+          <option value="01">Enero</option>
+          <option value="02">Febrero</option>
+          <option value="03">Marzo</option>
+          <option value="04">Abril</option>
+          <option value="05">Mayo</option>
+          <option value="06">Junio</option>
+          <option value="07">Julio</option>
+          <option value="08">Agosto</option>
+          <option value="09">Septiembre</option>
+          <option value="10">Octubre</option>
+          <option value="11">Noviembre</option>
+          <option value="12">Diciembre</option>
+        </select>
+      </div>
+    </div>
+
     <!-- Global summary -->
     <div class="summary">
       <div class="summary-card income">
@@ -782,16 +807,6 @@
     <div class="card">
       <div class="card-title">📋 Historial</div>
       <div class="filters">
-        <div class="filter-range">
-          <div class="filter-range-row">
-            <span>Desde</span>
-            <input type="month" id="filter-from" />
-          </div>
-          <div class="filter-range-row">
-            <span>Hasta</span>
-            <input type="month" id="filter-to" />
-          </div>
-        </div>
         <select id="filter-type">
           <option value="">Todos los tipos</option>
           <option value="expense">Gastos</option>
@@ -1164,17 +1179,35 @@
     });
   }
 
-  function getFiltered() {
-    const from = document.getElementById('filter-from').value;
-    const to   = document.getElementById('filter-to').value;
-    const type  = document.getElementById('filter-type').value;
-    const cat   = document.getElementById('filter-cat').value;
-    const user  = document.getElementById('filter-user').value;
+  function getDateFilter() {
+    return {
+      year:  document.getElementById('global-year').value,
+      month: document.getElementById('global-month').value,
+    };
+  }
+
+  function dateMatches(dateStr, year, month) {
+    if (year  && !dateStr.startsWith(year))      return false;
+    if (month && dateStr.slice(5, 7) !== month)  return false;
+    return true;
+  }
+
+  function getSummaryFiltered() {
+    const { year, month } = getDateFilter();
     return transactions.filter(t => {
       if (t.status === 'pending') return false;
-      const ym = t.date.slice(0, 7);
-      if (from && ym < from) return false;
-      if (to   && ym > to)   return false;
+      return dateMatches(t.date, year, month);
+    });
+  }
+
+  function getFiltered() {
+    const { year, month } = getDateFilter();
+    const type = document.getElementById('filter-type').value;
+    const cat  = document.getElementById('filter-cat').value;
+    const user = document.getElementById('filter-user').value;
+    return transactions.filter(t => {
+      if (t.status === 'pending') return false;
+      if (!dateMatches(t.date, year, month)) return false;
       if (type && t.type !== type) return false;
       if (cat  && t.category !== cat) return false;
       if (user && t.user !== user) return false;
@@ -1183,14 +1216,10 @@
   }
 
   function getMonthCount() {
-    const from = document.getElementById('filter-from').value;
-    const to   = document.getElementById('filter-to').value;
-    if (from && to) {
-      const [fy, fm] = from.split('-').map(Number);
-      const [ty, tm] = to.split('-').map(Number);
-      return Math.max(1, (ty - fy) * 12 + (tm - fm) + 1);
-    }
-    const expenses = getFiltered().filter(t => t.type === 'expense');
+    const { year, month } = getDateFilter();
+    if (year && month) return 1;
+    if (year) return 12;
+    const expenses = getSummaryFiltered().filter(t => t.type === 'expense');
     if (expenses.length < 2) return 1;
     const sorted = expenses.map(t => t.date.slice(0, 7)).sort();
     const [fy, fm] = sorted[0].split('-').map(Number);
@@ -1200,7 +1229,7 @@
 
   // ── Render ──
   function renderSummary() {
-    const list    = getFiltered();
+    const list    = getSummaryFiltered();
     const income  = list.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
     const expense = list.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
     const balance = income - expense;
@@ -1219,7 +1248,7 @@
   }
 
   function renderUsersSummary() {
-    const list = getFiltered();
+    const list = getSummaryFiltered();
     const container = document.getElementById('users-summary-container');
     const allNames = [...new Set([ADMIN_USER, ...users.map(u => u.username)])];
     if (allNames.length === 0) { container.innerHTML = ''; return; }
@@ -1288,7 +1317,7 @@
   }
 
   function renderChart(type, containerId) {
-    const list   = getFiltered().filter(t => t.type === type);
+    const list   = getSummaryFiltered().filter(t => t.type === type);
     const totals = {};
     list.forEach(t => { totals[t.category] = (totals[t.category] || 0) + t.amount; });
     const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
@@ -1314,21 +1343,12 @@
   }
 
   function getFullDayKeys() {
-    const from = document.getElementById('filter-from').value;
-    const to   = document.getElementById('filter-to').value;
-    if (!from) return null;
-    const end = to || from;
-    const [fy,fm] = from.split('-').map(Number);
-    const [ty,tm] = end.split('-').map(Number);
-    const lastDay  = new Date(ty, tm, 0).getDate();
-    const start = new Date(fy, fm-1, 1);
-    const stop  = new Date(ty, tm-1, lastDay);
-    const days  = [];
-    for (const d = new Date(start); d <= stop; d.setDate(d.getDate()+1)) {
-      const y = d.getFullYear();
-      const m = String(d.getMonth()+1).padStart(2,'0');
-      const day = String(d.getDate()).padStart(2,'0');
-      days.push(`${y}-${m}-${day}`);
+    const { year, month } = getDateFilter();
+    if (!year || !month) return null;
+    const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+    const days = [];
+    for (let d = 1; d <= lastDay; d++) {
+      days.push(`${year}-${month}-${String(d).padStart(2,'0')}`);
     }
     return days;
   }
@@ -1347,7 +1367,7 @@
     if (showIncome) {
       // ── Gráfica de ingresos: líneas por categoría con área ──
       title.textContent = '📈 Evolución de ingresos por categoría';
-      const incomes = getFiltered().filter(t => t.type === 'income');
+      const incomes = getSummaryFiltered().filter(t => t.type === 'income');
 
       if (!incomes.length) {
         canvas.style.display = 'none'; empty.style.display = ''; badge.textContent = ''; return;
@@ -1401,7 +1421,7 @@
     } else {
       // ── Gráfica de gastos: barras por período + línea acumulada ──
       title.textContent = '📉 Evolución de gastos';
-      const expenses = getFiltered().filter(t => t.type === 'expense');
+      const expenses = getSummaryFiltered().filter(t => t.type === 'expense');
 
       if (!expenses.length) {
         canvas.style.display = 'none'; empty.style.display = ''; badge.textContent = ''; return;
@@ -1466,6 +1486,7 @@
   }
 
   function render() {
+    populateGlobalYear();
     populateFilterSelects();
     renderSummary();
     renderUsersSummary();
@@ -1684,7 +1705,7 @@
     document.getElementById('desc').value   = '';
   });
 
-  ['filter-from','filter-to','filter-type','filter-cat','filter-user'].forEach(id => {
+  ['global-year','global-month','filter-type','filter-cat','filter-user'].forEach(id => {
     document.getElementById(id).addEventListener('change', render);
   });
 
@@ -1717,12 +1738,26 @@
     });
   }
 
+  function populateGlobalYear() {
+    const sel = document.getElementById('global-year');
+    const currentYear = new Date().getFullYear();
+    const years = new Set([currentYear]);
+    transactions.forEach(t => { if (t.date) years.add(parseInt(t.date.slice(0,4))); });
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Todos los años</option>';
+    [...years].sort((a,b) => b-a).forEach(y => {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y;
+      if (String(y) === prev || (!prev && y === currentYear)) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
   // ── Init ──
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
-  document.getElementById('date').value        = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-  document.getElementById('filter-from').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
-  document.getElementById('filter-to').value   = `${now.getFullYear()}-${pad(now.getMonth()+1)}`;
+  document.getElementById('date').value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+  document.getElementById('global-month').value = pad(now.getMonth()+1);
 
   // ── Init: cargar datos desde Firebase y luego mostrar la app ──
   (async () => {
@@ -1732,6 +1767,7 @@
 
     updateUsersHint();
     populateCategorySelect('category', 'expense');
+    populateGlobalYear();
     initCollapsibleCards();
 
     if (currentUser) showApp();
