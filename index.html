@@ -260,6 +260,17 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .card-chevron {
+      margin-left: auto;
+      font-size: .78rem;
+      color: var(--muted);
+      transition: transform .2s;
+      display: inline-block;
+      flex-shrink: 0;
     }
 
     /* Form */
@@ -492,6 +503,7 @@
       padding-bottom: 10px;
       border-bottom: 2px solid var(--border);
       display: flex; align-items: center; gap: 8px;
+      cursor: pointer; user-select: none;
     }
 
     .cat-type-section { margin-bottom: 28px; }
@@ -1676,6 +1688,35 @@
     document.getElementById(id).addEventListener('change', render);
   });
 
+  function initCollapsibleCards() {
+    const targets = [
+      ...document.querySelectorAll('.card > .card-title'),
+      ...document.querySelectorAll('.card > .admin-section-title'),
+    ];
+    targets.forEach(titleEl => {
+      if (titleEl.dataset.collapsible) return;
+      titleEl.dataset.collapsible = '1';
+
+      const chevron = document.createElement('span');
+      chevron.className = 'card-chevron';
+      chevron.textContent = '▾';
+      titleEl.appendChild(chevron);
+
+      const card = titleEl.parentElement;
+      const body = document.createElement('div');
+      body.className = 'card-body';
+      while (titleEl.nextSibling) body.appendChild(titleEl.nextSibling);
+      card.appendChild(body);
+
+      titleEl.addEventListener('click', () => {
+        const hide = body.style.display !== 'none';
+        body.style.display = hide ? 'none' : '';
+        chevron.style.transform = hide ? 'rotate(-90deg)' : '';
+        titleEl.style.marginBottom = hide ? '0' : '';
+      });
+    });
+  }
+
   // ── Init ──
   const now = new Date();
   const pad = n => String(n).padStart(2, '0');
@@ -1691,6 +1732,7 @@
 
     updateUsersHint();
     populateCategorySelect('category', 'expense');
+    initCollapsibleCards();
 
     if (currentUser) showApp();
 
