@@ -1325,7 +1325,7 @@
   }
 
   function renderChart(type, containerId) {
-    const list   = getSummaryFiltered().filter(t => t.type === type);
+    const list   = getChartFiltered().filter(t => t.type === type);
     const totals = {};
     list.forEach(t => { totals[t.category] = (totals[t.category] || 0) + t.amount; });
     const sorted = Object.entries(totals).sort((a, b) => b[1] - a[1]);
@@ -1365,7 +1365,10 @@
     return days;
   }
 
-  function renderTrendChart() {
+  function getChartFiltered() {
+    const cat  = document.getElementById('filter-cat').value;
+    return getSummaryFiltered().filter(t => !cat || t.category === cat);
+  }
     const filterType = document.getElementById('filter-type').value;
     const canvas     = document.getElementById('trend-canvas');
     const empty      = document.getElementById('trend-empty');
@@ -1379,7 +1382,7 @@
     if (showIncome) {
       // ── Gráfica de ingresos: líneas por categoría con área ──
       title.textContent = '📈 Evolución de ingresos por categoría';
-      const incomes = getSummaryFiltered().filter(t => t.type === 'income');
+      const incomes = getChartFiltered().filter(t => t.type === 'income');
 
       if (!incomes.length) {
         canvas.style.display = 'none'; empty.style.display = ''; badge.textContent = ''; return;
@@ -1433,7 +1436,7 @@
     } else {
       // ── Gráfica de gastos: barras por período + línea acumulada ──
       title.textContent = '📉 Evolución de gastos';
-      const expenses = getSummaryFiltered().filter(t => t.type === 'expense');
+      const expenses = getChartFiltered().filter(t => t.type === 'expense');
 
       if (!expenses.length) {
         canvas.style.display = 'none'; empty.style.display = ''; badge.textContent = ''; return;
