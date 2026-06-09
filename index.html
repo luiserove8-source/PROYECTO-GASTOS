@@ -1367,7 +1367,11 @@
 
   function getChartFiltered() {
     const cat  = document.getElementById('filter-cat').value;
-    return getSummaryFiltered().filter(t => !cat || t.category === cat);
+    const user = document.getElementById('filter-user').value;
+    return getSummaryFiltered().filter(t =>
+      (!cat  || t.category === cat) &&
+      (!user || t.user === user)
+    );
   }
     const filterType = document.getElementById('filter-type').value;
     const canvas     = document.getElementById('trend-canvas');
