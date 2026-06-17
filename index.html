@@ -979,21 +979,20 @@
     return h.toString(36);
   }
 
-  async function saveToFirebase() {
+  async function putSection(path, data) {
     try {
-      await fetch(`${DB_URL}/app.json`, {
+      await fetch(`${DB_URL}/app/${path}.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ users, transactions, customCats, deletedBaseCats })
+        body: JSON.stringify(data)
       });
-    } catch (e) { console.error('Error guardando en Firebase:', e); }
+    } catch (e) { console.error('Error guardando ' + path + ':', e); }
   }
 
-  // Aliases para compatibilidad con el código existente
-  function saveUsers()       { saveToFirebase(); }
-  function saveTxs()         { saveToFirebase(); }
-  function saveCats()        { saveToFirebase(); }
-  function saveDeletedCats() { saveToFirebase(); }
+  function saveUsers()       { putSection('users',           users); }
+  function saveTxs()         { putSection('transactions',    transactions); }
+  function saveCats()        { putSection('customCats',      customCats); }
+  function saveDeletedCats() { putSection('deletedBaseCats', deletedBaseCats); }
 
   async function loadFromFirebase() {
     try {

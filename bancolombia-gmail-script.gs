@@ -8,7 +8,7 @@
  *  4. Autoriza los permisos cuando te lo pida
  */
 
-const FIREBASE_URL = 'https://gastos-f64f4-default-rtdb.firebaseio.com/app.json';
+const FIREBASE_URL = 'https://gastos-f64f4-default-rtdb.firebaseio.com/app';
 const SCRIPT_USER  = 'Sebas R';   // nombre que aparece como "usuario" en las transacciones
 const LABEL_NAME   = 'Procesado-Gastos'; // label que se pone al email ya procesado
 
@@ -51,23 +51,18 @@ function parseEmail(subject, body) {
 }
 
 // ─── Firebase helpers ────────────────────────────────────────────────────────
-function loadFirebase() {
-  const res = UrlFetchApp.fetch(FIREBASE_URL, { muteHttpExceptions: true });
+function loadTransactions() {
+  const res  = UrlFetchApp.fetch(FIREBASE_URL + '/transactions.json', { muteHttpExceptions: true });
   const data = JSON.parse(res.getContentText());
   const toArr = v => !v ? [] : Array.isArray(v) ? v : Object.values(v);
-  return {
-    users:           toArr(data?.users),
-    transactions:    toArr(data?.transactions),
-    customCats:      { expense: toArr(data?.customCats?.expense),   income: toArr(data?.customCats?.income)   },
-    deletedBaseCats: { expense: toArr(data?.deletedBaseCats?.expense), income: toArr(data?.deletedBaseCats?.income) },
-  };
+  return toArr(data);
 }
 
-function saveFirebase(state) {
-  UrlFetchApp.fetch(FIREBASE_URL, {
+function saveTransactions(transactions) {
+  UrlFetchApp.fetch(FIREBASE_URL + '/transactions.json', {
     method: 'put',
     contentType: 'application/json',
-    payload: JSON.stringify(state),
+    payload: JSON.stringify(transactions),
     muteHttpExceptions: true,
   });
 }
@@ -86,7 +81,7 @@ function processBancolombiaEmails() {
     return;
   }
 
-  const state = loadFirebase();
+  const txList = loadTransactions();
 
   for (const thread of threads) {
     for (const msg of thread.getMessages()) {
@@ -103,13 +98,13 @@ function processBancolombiaEmails() {
       tx.id   = generateUUID();
       tx.user = SCRIPT_USER;
 
-      state.transactions.push(tx);
+      txList.push(tx);
       Logger.log(`Transacción creada: ${tx.type} $${tx.amount} cat:${tx.category} desc:${tx.desc} fecha:${tx.date}`);
     }
     thread.addLabel(label);
   }
 
-  saveFirebase(state);
+  saveTransactions(txList);
   Logger.log('Firebase actualizado con ' + threads.length + ' hilo(s) procesado(s).');
 }
 
