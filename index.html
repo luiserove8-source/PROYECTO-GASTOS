@@ -1636,6 +1636,21 @@
     renderAdminView();
   }
 
+  function approveAllPendingTxs() {
+    const pending = transactions.filter(t => t.status === 'pending');
+    if (!pending.length) return;
+    pending.forEach(t => {
+      const sel = document.getElementById('pcat-' + t.id);
+      const [type, category] = sel ? sel.value.split('|') : ['expense', 'Otros'];
+      const idx = transactions.findIndex(tx => tx.id === t.id);
+      if (idx !== -1) {
+        transactions[idx] = { ...transactions[idx], type, category };
+        delete transactions[idx].status;
+      }
+    });
+    saveTxs(); render(); renderAdminView();
+  }
+
   function renderPendingTxs() {
     const pending = transactions.filter(t => t.status === 'pending');
     const card    = document.getElementById('pending-card');
@@ -1643,7 +1658,22 @@
     card.style.display = pending.length ? 'block' : 'none';
     if (!pending.length) return;
 
-    list.innerHTML = pending.map(t => {
+    const expCatsHeader = getCategories('expense').map(c => `<option value="expense|${c}">${c} (Gasto)</option>`).join('');
+    const incCatsHeader = getCategories('income').map(c => `<option value="income|${c}">${c} (Ingreso)</option>`).join('');
+    list.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0 14px">
+        <span style="font-size:.82rem;color:var(--muted)">${pending.length} pendiente(s)</span>
+        <select id="approve-all-cat" style="flex:1;min-width:160px">
+          <optgroup label="Gastos">${expCatsHeader}</optgroup>
+          <optgroup label="Ingresos">${incCatsHeader}</optgroup>
+        </select>
+        <button class="btn-approve" style="white-space:nowrap" onclick="
+          const selAll = document.getElementById('approve-all-cat');
+          document.querySelectorAll('[id^=pcat-]').forEach(s => s.value = selAll.value);
+          approveAllPendingTxs();
+        ">✓ Aprobar todos</button>
+      </div>` +
+    pending.map(t => {
       const allCats = [...getCategories('expense'), ...getCategories('income')];
       const expCats = getCategories('expense').map(c => `<option value="expense|${c}">${c} (Gasto)</option>`).join('');
       const incCats = getCategories('income').map(c => `<option value="income|${c}">${c} (Ingreso)</option>`).join('');
