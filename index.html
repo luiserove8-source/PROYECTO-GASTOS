@@ -1324,9 +1324,10 @@
     }).join('');
   }
 
-  function computeMonthDelta(yr, mo) {
+  function computeMonthDelta(yr, mo, user) {
     const prefix = `${yr}-${String(mo).padStart(2,'0')}`;
-    const list   = transactions.filter(t => t.status !== 'pending' && t.date && t.date.startsWith(prefix));
+    let list = transactions.filter(t => t.status !== 'pending' && t.date && t.date.startsWith(prefix));
+    if (user) list = list.filter(t => t.user === user);
     const income  = list.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
     const savings = list.filter(t => t.type === 'expense' && SAVINGS_CATS.includes(t.category)).reduce((s,t) => s + t.amount, 0);
     const expense = list.filter(t => t.type === 'expense' && !SAVINGS_CATS.includes(t.category)).reduce((s,t) => s + t.amount, 0);
@@ -1341,6 +1342,7 @@
       return;
     }
 
+    const userFilter = document.getElementById('filter-user').value;
     let rows = '';
     let lastYM = null;
 
@@ -1350,18 +1352,47 @@
         const [yr, mo] = ym.split('-').map(Number);
         const pmo = mo === 1 ? 12 : mo - 1;
         const pyr = mo === 1 ? yr - 1 : yr;
-        const delta = computeMonthDelta(pyr, pmo);
         const prevName = MONTHS_SHORT[pmo - 1] + ' ' + pyr;
         const curName  = MONTHS_SHORT[mo - 1]  + ' ' + yr;
-        const dColor   = delta >= 0 ? 'var(--success)' : 'var(--danger)';
-        const dSign    = delta >= 0 ? '+' : '';
 
         rows += `<tr class="month-label-row"><td colspan="7">${curName}</td></tr>`;
-        rows += `<tr class="carryforward-row">
-          <td colspan="5" style="color:var(--muted);font-style:italic">↩ Balance ${prevName}</td>
-          <td style="text-align:right;font-weight:700;color:${dColor}">${dSign}${fmt(delta)}</td>
-          <td></td>
-        </tr>`;
+
+        if (userFilter) {
+          // fila por usuario seleccionado
+          const delta  = computeMonthDelta(pyr, pmo, userFilter);
+          const dColor = delta >= 0 ? 'var(--success)' : 'var(--danger)';
+          const dSign  = delta >= 0 ? '+' : '';
+          rows += `<tr class="carryforward-row">
+            <td colspan="5" style="color:var(--muted);font-style:italic">↩ Balance ${prevName} · ${userFilter}</td>
+            <td style="text-align:right;font-weight:700;color:${dColor}">${dSign}${fmt(delta)}</td>
+            <td></td>
+          </tr>`;
+        } else {
+          // fila global + una fila por cada usuario con transacciones ese mes anterior
+          const globalDelta = computeMonthDelta(pyr, pmo, null);
+          const gc = globalDelta >= 0 ? 'var(--success)' : 'var(--danger)';
+          rows += `<tr class="carryforward-row">
+            <td colspan="5" style="color:var(--muted);font-style:italic">↩ Balance global ${prevName}</td>
+            <td style="text-align:right;font-weight:700;color:${gc}">${globalDelta >= 0 ? '+' : ''}${fmt(globalDelta)}</td>
+            <td></td>
+          </tr>`;
+          const usersInPrevMonth = [...new Set(
+            transactions.filter(t => t.status !== 'pending' && t.date && t.date.startsWith(`${pyr}-${String(pmo).padStart(2,'0')}`))
+              .map(t => t.user).filter(Boolean)
+          )];
+          usersInPrevMonth.forEach(u => {
+            const ud = computeMonthDelta(pyr, pmo, u);
+            const uc = ud >= 0 ? 'var(--success)' : 'var(--danger)';
+            const uColor = u === ADMIN_USER ? '#b45309' : userColor(u);
+            rows += `<tr class="carryforward-row">
+              <td colspan="5" style="color:var(--muted);font-style:italic;padding-left:28px">
+                <span class="dot" style="background:${uColor};display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px"></span>${u}
+              </td>
+              <td style="text-align:right;font-weight:600;color:${uc}">${ud >= 0 ? '+' : ''}${fmt(ud)}</td>
+              <td></td>
+            </tr>`;
+          });
+        }
         lastYM = ym;
       }
 
