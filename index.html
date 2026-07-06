@@ -765,6 +765,7 @@
       <div class="summary-card balance">
         <span class="label">Delta</span>
         <span class="amount" id="total-balance">$0.00</span>
+        <span id="total-carryforward" style="font-size:.72rem;color:var(--muted);margin-top:2px"></span>
       </div>
     </div>
 
@@ -1265,12 +1266,29 @@
     const expense = list.filter(t => t.type === 'expense' && !SAVINGS_CATS.includes(t.category)).reduce((s, t) => s + t.amount, 0);
     const delta   = income - expense - savings;
 
+    // Arrastre del mes anterior al inicio del período seleccionado
+    const { year, fromMonth } = getDateFilter();
+    let prevDelta = 0;
+    let carryLabel = '';
+    if (year && fromMonth) {
+      const mo  = parseInt(fromMonth);
+      const yr  = parseInt(year);
+      const pmo = mo === 1 ? 12 : mo - 1;
+      const pyr = mo === 1 ? yr - 1 : yr;
+      prevDelta  = computeMonthDelta(pyr, pmo, null);
+      carryLabel = `↩ ${MONTHS_SHORT[pmo - 1]} ${pyr}: ${prevDelta >= 0 ? '+' : ''}${fmt(prevDelta)}`;
+    }
+    const totalDelta = delta + prevDelta;
+
     document.getElementById('total-income').textContent  = fmt(income);
     document.getElementById('total-expense').textContent = fmt(expense);
     document.getElementById('total-savings').textContent = fmt(savings);
-    const balEl = document.getElementById('total-balance');
-    balEl.textContent = fmt(delta);
-    balEl.style.color = delta >= 0 ? 'var(--success)' : 'var(--danger)';
+    const balEl   = document.getElementById('total-balance');
+    const cfEl    = document.getElementById('total-carryforward');
+    balEl.textContent = fmt(totalDelta);
+    balEl.style.color = totalDelta >= 0 ? 'var(--success)' : 'var(--danger)';
+    cfEl.textContent  = carryLabel;
+    cfEl.style.color  = prevDelta >= 0 ? 'var(--success)' : 'var(--danger)';
   }
 
   function allUsernames() {
