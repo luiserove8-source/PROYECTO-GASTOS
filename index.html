@@ -394,6 +394,23 @@
     .amount-cell.expense { color: var(--danger); }
     .amount-cell.income  { color: var(--success); }
 
+    .carryforward-row td {
+      background: var(--bg);
+      border-top: 2px solid var(--border);
+      font-size: .82rem;
+      padding: 6px 12px;
+    }
+    .month-label-row td {
+      background: transparent;
+      padding: 14px 12px 2px;
+      font-size: .75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      border: none;
+    }
+
     .btn-del {
       background: none; border: none; cursor: pointer;
       color: var(--muted); font-size: 1.1rem;
@@ -1307,6 +1324,15 @@
     }).join('');
   }
 
+  function computeMonthDelta(yr, mo) {
+    const prefix = `${yr}-${String(mo).padStart(2,'0')}`;
+    const list   = transactions.filter(t => t.status !== 'pending' && t.date && t.date.startsWith(prefix));
+    const income  = list.filter(t => t.type === 'income').reduce((s,t) => s + t.amount, 0);
+    const savings = list.filter(t => t.type === 'expense' && SAVINGS_CATS.includes(t.category)).reduce((s,t) => s + t.amount, 0);
+    const expense = list.filter(t => t.type === 'expense' && !SAVINGS_CATS.includes(t.category)).reduce((s,t) => s + t.amount, 0);
+    return income - expense - savings;
+  }
+
   function renderList() {
     const list  = getFiltered().sort((a, b) => b.date.localeCompare(a.date));
     const tbody = document.getElementById('tx-list');
@@ -1314,9 +1340,33 @@
       tbody.innerHTML = '<tr><td colspan="7" class="empty">Sin transacciones</td></tr>';
       return;
     }
-    tbody.innerHTML = list.map(t => {
+
+    let rows = '';
+    let lastYM = null;
+
+    list.forEach(t => {
+      const ym = t.date.slice(0, 7);
+      if (ym !== lastYM) {
+        const [yr, mo] = ym.split('-').map(Number);
+        const pmo = mo === 1 ? 12 : mo - 1;
+        const pyr = mo === 1 ? yr - 1 : yr;
+        const delta = computeMonthDelta(pyr, pmo);
+        const prevName = MONTHS_SHORT[pmo - 1] + ' ' + pyr;
+        const curName  = MONTHS_SHORT[mo - 1]  + ' ' + yr;
+        const dColor   = delta >= 0 ? 'var(--success)' : 'var(--danger)';
+        const dSign    = delta >= 0 ? '+' : '';
+
+        rows += `<tr class="month-label-row"><td colspan="7">${curName}</td></tr>`;
+        rows += `<tr class="carryforward-row">
+          <td colspan="5" style="color:var(--muted);font-style:italic">↩ Balance ${prevName}</td>
+          <td style="text-align:right;font-weight:700;color:${dColor}">${dSign}${fmt(delta)}</td>
+          <td></td>
+        </tr>`;
+        lastYM = ym;
+      }
+
       const color = userColor(t.user || '');
-      return `
+      rows += `
         <tr>
           <td>${fmtDate(t.date)}</td>
           <td>
@@ -1333,7 +1383,9 @@
             <button class="btn-del"  onclick="remove('${t.id}')" title="Eliminar">✕</button>
           </td>
         </tr>`;
-    }).join('');
+    });
+
+    tbody.innerHTML = rows;
   }
 
   function renderChart(type, containerId) {
